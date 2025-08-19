@@ -19,3 +19,5 @@ bot.session
 user.session
 terabox.txt
 rclone.conf
+.qbt/
+__pycache__/

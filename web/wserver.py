@@ -8,6 +8,11 @@ from web.nodes import make_tree
 
 app = Flask(__name__)
 
+
+@app.get("/healthz")
+def healthz():
+    return "ok", 200
+
 aria2 = ariaAPI(ariaClient(host="http://localhost", port=6800, secret=""))
 
 basicConfig(

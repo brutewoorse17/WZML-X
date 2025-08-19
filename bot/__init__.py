@@ -800,7 +800,7 @@ if ospath.exists("shorteners.txt"):
 
 if BASE_URL:
     Popen(
-        f"gunicorn web.wserver:app --bind 0.0.0.0:{BASE_URL_PORT} --worker-class gevent",
+        f"gunicorn web.wserver:app --bind 0.0.0.0:{BASE_URL_PORT} --worker-class gevent --workers 1 --timeout 120 --graceful-timeout 30 --keep-alive 5 --access-logfile - --error-logfile - --log-level info",
         shell=True,
     )
 

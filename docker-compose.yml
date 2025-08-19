@@ -32,6 +32,17 @@ services:
     #network_mode: "service:gluetun" #If using VPN, Remove the Hash from first and fill up Above Details.
     command: bash start.sh
     restart: on-failure
+    env_file:
+      - config.env
+    volumes:
+      - ./downloads:/usr/src/app/downloads
+      - ./config.env:/usr/src/app/config.env:ro
     ports:
       - "80:80"
       - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'python3 -m bot' >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

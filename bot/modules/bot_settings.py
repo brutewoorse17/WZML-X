@@ -406,7 +406,7 @@ async def load_config():
         BASE_URL = ""
     else:
         await create_subprocess_shell(
-            f"gunicorn web.wserver:app --bind 0.0.0.0:{BASE_URL_PORT} --worker-class gevent"
+            f"gunicorn web.wserver:app --bind 0.0.0.0:{BASE_URL_PORT} --worker-class gevent --workers 1 --timeout 120 --graceful-timeout 30 --keep-alive 5 --access-logfile - --error-logfile - --log-level info"
         )
 
     UPSTREAM_REPO = environ.get("UPSTREAM_REPO", "")
@@ -961,7 +961,7 @@ async def edit_variable(_, message, pre_message, key):
         if config_dict["BASE_URL"]:
             await (await create_subprocess_exec("pkill", "-9", "-f", "gunicorn")).wait()
             await create_subprocess_shell(
-                f"gunicorn web.wserver:app --bind 0.0.0.0:{value} --worker-class gevent"
+                f"gunicorn web.wserver:app --bind 0.0.0.0:{value} --worker-class gevent --workers 1 --timeout 120 --graceful-timeout 30 --keep-alive 5 --access-logfile - --error-logfile - --log-level info"
             )
     elif key == "EXTENSION_FILTER":
         fx = value.split()
@@ -1277,7 +1277,7 @@ async def edit_bot_settings(client, query):
                     await create_subprocess_exec("pkill", "-9", "-f", "gunicorn")
                 ).wait()
                 await create_subprocess_shell(
-                    "gunicorn web.wserver:app --bind 0.0.0.0:80 --worker-class gevent"
+                    "gunicorn web.wserver:app --bind 0.0.0.0:80 --worker-class gevent --workers 1 --timeout 120 --graceful-timeout 30 --keep-alive 5 --access-logfile - --error-logfile - --log-level info"
                 )
         elif data[2] == "GDRIVE_ID":
             if "Main" in list_drives_dict:
