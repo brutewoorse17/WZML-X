@@ -46,7 +46,12 @@ from bot.helper.telegram_helper.message_utils import (
 from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
-from bot.helper.ext_utils.bot_utils import setInterval, sync_to_async, new_thread
+from bot.helper.ext_utils.bot_utils import (
+    setInterval,
+    sync_to_async,
+    new_thread,
+    update_user_ldata,
+)
 from bot.helper.ext_utils.db_handler import DbManger
 from bot.helper.ext_utils.task_manager import start_from_queued
 from bot.helper.ext_utils.help_messages import default_desp
@@ -848,6 +853,15 @@ async def get_buttons(key=None, edit_type=None, edit_mode=None, mess=None):
                 f"{int(x/10)+1}", f"botset start qbit {x}", position="footer"
             )
         msg = f"Qbittorrent Options | Page: {int(START/10)+1} | State: {STATE}"
+    elif key == "access":
+        # Access control home
+        buttons.ibutton("Authorized", "botset access list auth")
+        buttons.ibutton("Sudo", "botset access list sudo")
+        buttons.ibutton("Blacklisted", "botset access list black")
+        buttons.ibutton("Add", "botset access add")
+        buttons.ibutton("Back", "botset back")
+        buttons.ibutton("Close", "botset close")
+        msg = "<b><i>Access Control</i></b>\nManage Authorized, Sudo and Blacklisted users/chats."
     elif edit_type == "editvar":
         msg = f"<b>Variable:</b> <code>{key}</code>\n\n"
         msg += f'<b>Description:</b> {default_desp.get(key, "No Description Provided")}\n\n'
@@ -1238,6 +1252,70 @@ async def edit_bot_settings(client, query):
     elif data[1] in ["var", "aria", "qbit"]:
         await query.answer()
         await update_buttons(message, data[1])
+    elif data[1] == "access":
+        await query.answer()
+        await update_buttons(message, "access")
+    elif data[1] == "access" and data[2] == "list":
+        await query.answer()
+        view = data[3]
+        from bot import user_data
+        entries = []
+        if view == "auth":
+            entries = [str(uid) for uid, v in user_data.items() if v.get("is_auth")]
+            title = "Authorized"
+        elif view == "sudo":
+            entries = [str(uid) for uid, v in user_data.items() if v.get("is_sudo")]
+            title = "Sudo"
+        else:
+            entries = [str(uid) for uid, v in user_data.items() if v.get("is_blacklist")]
+            title = "Blacklisted"
+        text = f"<b>{title} IDs</b> (total: {len(entries)})\n" + ("\n".join(entries) or "None")
+        buttons = ButtonMaker()
+        buttons.ibutton("Back", "botset access", "footer")
+        buttons.ibutton("Close", "botset close", "footer")
+        await editMessage(message, text, buttons.build_menu(1))
+    elif data[1] == "access" and data[2] == "add":
+        await query.answer()
+        buttons = ButtonMaker()
+        buttons.ibutton("Authorized", "botset access add auth")
+        buttons.ibutton("Sudo", "botset access add sudo")
+        buttons.ibutton("Blacklisted", "botset access add black")
+        buttons.ibutton("Back", "botset access", "footer")
+        buttons.ibutton("Close", "botset close", "footer")
+        await editMessage(message, "Choose type to add/remove IDs", buttons.build_menu(2))
+    elif data[1] == "access" and data[2] == "add" and data[3] in ["auth", "sudo", "black"]:
+        await query.answer()
+        await editMessage(
+            message,
+            "Send space-separated ID(s). Prefix with '-' to remove. Example: 123 456 -789",
+            None,
+        )
+        async def handle_ids(_, __, m):
+            ids = m.text.split()
+            from bot import DATABASE_URL
+            to_set = "is_auth" if data[3] == "auth" else ("is_sudo" if data[3] == "sudo" else "is_blacklist")
+            for token in ids:
+                remove_mode = token.startswith("-")
+                try:
+                    uid = int(token[1:] if remove_mode else token)
+                except Exception:
+                    continue
+                update_user_ldata(uid, to_set, False if remove_mode else True)
+                if DATABASE_URL:
+                    await DbManger().update_user_data(uid)
+            await update_buttons(message, "access")
+            await deleteMessage(m)
+        handler = client.add_handler(MessageHandler(handle_ids, filters=create(lambda _, __, ev: ev.from_user.id == query.from_user.id and ev.chat.id == message.chat.id and bool(ev.text)))),
+        # Wait briefly for a single response or timeout loop similar to event_handler
+        start = time()
+        while time() - start < 60:
+            await sleep(0.5)
+            # exit once handler removed in handle_ids
+            pass
+        try:
+            client.remove_handler(*handler)
+        except Exception:
+            pass
     elif data[1] == "resetvar":
         handler_dict[message.chat.id] = False
         await query.answer("Reset Done!", show_alert=True)
