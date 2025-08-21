@@ -231,8 +231,15 @@ async def gdcloneNode(message, link, listen_up):
             return
         if config_dict["STOP_DUPLICATE"]:
             LOGGER.info("Checking File/Folder if already in Drive...")
+            # Prefer md5-based duplicate detection when possible
+            try:
+                md5_hex = await sync_to_async(gd.get_file_md5, link)
+                if md5_hex:
+                    listener.upload_details["md5_hash"] = md5_hex
+            except Exception:
+                pass
             telegraph_content, contents_no = await sync_to_async(
-                gd.drive_list, name, True, True
+                gd.drive_list, listener.upload_details.get("md5_hash") or name, True, True
             )
             if telegraph_content:
                 msg = BotTheme("STOP_DUPLICATE", content=contents_no)
