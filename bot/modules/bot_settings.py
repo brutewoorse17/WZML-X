@@ -814,6 +814,7 @@ async def get_buttons(key=None, edit_type=None, edit_mode=None, mess=None):
             )
         msg = f"<b>Config Variables</b> | <b>Page: {int(START/10)+1}</b>"
     elif key == "private":
+        buttons.ibutton("Upload token.pickle", "botset upload token_pickle")
         buttons.ibutton("Back", "botset back")
         buttons.ibutton("Close", "botset close")
         msg = """<u>Send any of these private files:</u>
@@ -1086,7 +1087,9 @@ async def update_private_file(_, message, pre_message):
             if DATABASE_URL:
                 await DbManger().update_config({"USE_SERVICE_ACCOUNTS": False})
         elif file_name in [".netrc", "netrc"]:
-            await (await create_subprocess_exec("touch", ".netrc")).wait()
+            if file_name == "netrc":
+                await rename("netrc", ".netrc")
+                file_name = ".netrc"
             await (await create_subprocess_exec("chmod", "600", ".netrc")).wait()
             await (await create_subprocess_exec("cp", ".netrc", "/root/.netrc")).wait()
         elif file_name.startswith("wzml_"):
@@ -1111,7 +1114,21 @@ async def update_private_file(_, message, pre_message):
                 }
         elif file_name in ["shorteners.txt", "shorteners"]:
             shorteners_list.clear()
-        await deleteMessage(message)
+        elif file_name == "token.pickle":
+            # Handle Google Drive token.pickle file deletion
+            if await aiopath.exists("token.pickle"):
+                await remove("token.pickle")
+        elif file_name == "config.env":
+            load_dotenv("config.env", override=True)
+            await load_config()
+        if "@github.com" in config_dict["UPSTREAM_REPO"]:
+            buttons = ButtonMaker()
+            msg = "<i>Do you want to Upload (Git Push) your file to <b>UPSTREAM_REPO</b> ?</i>"
+            buttons.ibutton("Yes!", f"botset push {file_name}")
+            buttons.ibutton("No!", "botset close")
+            await sendMessage(message, msg, buttons.build_menu(2))
+        else:
+            await deleteMessage(message)
     elif doc := message.document:
         file_name = doc.file_name
         path = file_name
@@ -1183,6 +1200,12 @@ async def update_private_file(_, message, pre_message):
                     temp = line.strip().split()
                     if len(temp) == 2:
                         shorteners_list.append({"domain": temp[0], "api_key": temp[1]})
+        elif file_name == "token.pickle":
+            # Handle Google Drive token.pickle file
+            if await aiopath.exists("token.pickle"):
+                await remove("token.pickle")
+            await message.download(file_name=f"{getcwd()}/token.pickle")
+            await editMessage(pre_message, "✅ token.pickle uploaded successfully!")
         elif file_name in [".netrc", "netrc"]:
             if file_name == "netrc":
                 await rename("netrc", ".netrc")
@@ -1311,6 +1334,32 @@ async def edit_bot_settings(client, query):
         while time() - start < 60:
             await sleep(0.5)
             # exit once handler removed in handle_ids
+            pass
+        try:
+            client.remove_handler(*handler)
+        except Exception:
+            pass
+    elif data[1] == "upload" and data[2] == "token_pickle":
+        await query.answer()
+        await editMessage(
+            message,
+            "Send the token.pickle file to upload it. This file contains Google Drive authentication tokens.",
+            None,
+        )
+        async def handle_token_upload(_, __, m):
+            if m.document and m.document.file_name == "token.pickle":
+                await message.download(file_name=f"{getcwd()}/token.pickle")
+                await editMessage(message, "✅ token.pickle uploaded successfully!")
+                await deleteMessage(m)
+                await update_buttons(message, "private")
+            else:
+                await editMessage(message, "❌ Please send a file named 'token.pickle'")
+                await deleteMessage(m)
+                await update_buttons(message, "private")
+        handler = client.add_handler(MessageHandler(handle_token_upload, filters=create(lambda _, __, ev: ev.from_user.id == query.from_user.id and ev.chat.id == message.chat.id and bool(ev.document or ev.text)))),
+        start = time()
+        while time() - start < 60:
+            await sleep(0.5)
             pass
         try:
             client.remove_handler(*handler)
