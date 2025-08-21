@@ -8,6 +8,9 @@ from aiofiles import open as aiopen
 from aiofiles.os import remove as aioremove, path as aiopath, mkdir
 from re import match as re_match
 from time import time
+import hmac
+import hashlib
+import base64
 from html import escape
 from uuid import uuid4
 from subprocess import run as srun
@@ -145,13 +148,22 @@ def bt_selection_buttons(id_):
     pincode = "".join([n for n in id_ if n.isdigit()][:4])
     buttons = ButtonMaker()
     BASE_URL = config_dict["BASE_URL"]
-    if config_dict["WEB_PINCODE"]:
-        buttons.ubutton("Select Files", f"{BASE_URL}/app/files/{id_}")
-        buttons.ibutton("Pincode", f"btsel pin {gid} {pincode}")
+    secret = config_dict.get("WEB_TOKEN_SECRET", "")
+    if secret:
+        # Build short-lived signed token bound to id_
+        expires = int(time()) + int(config_dict.get("WEB_TOKEN_TTL", 900))
+        msg = f"{id_}:{expires}".encode()
+        sig = hmac.new(secret.encode(), msg, hashlib.sha256).digest()
+        token = base64.urlsafe_b64encode(sig).decode().rstrip("=") + f".{expires}"
+        buttons.ubutton("Select Files", f"{BASE_URL}/app/files/{id_}?token={token}")
     else:
-        buttons.ubutton(
-            "Select Files", f"{BASE_URL}/app/files/{id_}?pin_code={pincode}"
-        )
+        if config_dict["WEB_PINCODE"]:
+            buttons.ubutton("Select Files", f"{BASE_URL}/app/files/{id_}")
+            buttons.ibutton("Pincode", f"btsel pin {gid} {pincode}")
+        else:
+            buttons.ubutton(
+                "Select Files", f"{BASE_URL}/app/files/{id_}?pin_code={pincode}"
+            )
     buttons.ibutton("Cancel", f"btsel rm {gid} {id_}")
     buttons.ibutton("Done Selecting", f"btsel done {gid} {id_}")
     return buttons.build_menu(2)

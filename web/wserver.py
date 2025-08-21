@@ -3,6 +3,11 @@ from time import sleep
 from qbittorrentapi import NotFound404Error, Client as qbClient
 from aria2p import API as ariaAPI, Client as ariaClient
 from flask import Flask, request
+import os
+import time as _time
+import hmac
+import hashlib
+import base64
 
 from web.nodes import make_tree
 
@@ -703,18 +708,32 @@ def re_verfiy(paused, resumed, client, hash_id):
 
 @app.route("/app/files/<string:id_>", methods=["GET"])
 def list_torrent_contents(id_):
-
-    if "pin_code" not in request.args.keys():
-        return code_page.replace("{form_url}", f"/app/files/{id_}")
-
-    pincode = ""
-    for nbr in id_:
-        if nbr.isdigit():
-            pincode += str(nbr)
-        if len(pincode) == 4:
-            break
-    if request.args["pin_code"] != pincode:
-        return "<h1>Incorrect pin code</h1>"
+    # Prefer signed token, fallback to pincode
+    token = request.args.get("token")
+    secret = os.getenv("WEB_TOKEN_SECRET", "")
+    authorized = False
+    if token and secret:
+        try:
+            sig_b64, exp_str = token.rsplit(".", 1)
+            expires = int(exp_str)
+            if _time.time() <= expires:
+                msg = f"{id_}:{expires}".encode()
+                expected = hmac.new(secret.encode(), msg, hashlib.sha256).digest()
+                provided = base64.urlsafe_b64decode(sig_b64 + "=")
+                authorized = hmac.compare_digest(expected, provided)
+        except Exception:
+            authorized = False
+    if not authorized:
+        if "pin_code" not in request.args.keys():
+            return code_page.replace("{form_url}", f"/app/files/{id_}")
+        pincode = ""
+        for nbr in id_:
+            if nbr.isdigit():
+                pincode += str(nbr)
+            if len(pincode) == 4:
+                break
+        if request.args["pin_code"] != pincode:
+            return "<h1>Incorrect pin code</h1>"
 
     if len(id_) > 20:
         client = qbClient(host="localhost", port="8090")
@@ -724,14 +743,38 @@ def list_torrent_contents(id_):
     else:
         res = aria2.client.get_files(id_)
         cont = make_tree(res, True)
-    return page.replace("{My_content}", cont[0]).replace(
-        "{form_url}", f"/app/files/{id_}?pin_code={pincode}"
-    )
+    if authorized:
+        form_url = f"/app/files/{id_}?token={token}"
+    else:
+        form_url = f"/app/files/{id_}?pin_code={pincode}"
+    return page.replace("{My_content}", cont[0]).replace("{form_url}", form_url)
 
 
 @app.route("/app/files/<string:id_>", methods=["POST"])
 def set_priority(id_):
-
+    # Validate token first if configured
+    token = request.args.get("token")
+    secret = os.getenv("WEB_TOKEN_SECRET", "")
+    if secret:
+        ok = False
+        if token:
+            try:
+                sig_b64, exp_str = token.rsplit(".", 1)
+                expires = int(exp_str)
+                if _time.time() <= expires:
+                    msg = f"{id_}:{expires}".encode()
+                    expected = hmac.new(secret.encode(), msg, hashlib.sha256).digest()
+                    provided = base64.urlsafe_b64decode(sig_b64 + "=")
+                    ok = hmac.compare_digest(expected, provided)
+            except Exception:
+                ok = False
+        if not ok:
+            return "<h1>Unauthorized</h1>", 401
+    else:
+        # fallback to pin if no secret configured
+        pincode = "".join([n for n in id_ if n.isdigit()][:4])
+        if request.args.get("pin_code") != pincode:
+            return "<h1>Incorrect pin code</h1>", 401
     data = dict(request.form)
     resume = ""
     if len(id_) > 20:

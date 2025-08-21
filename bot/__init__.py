@@ -403,6 +403,11 @@ USE_SERVICE_ACCOUNTS = USE_SERVICE_ACCOUNTS.lower() == "true"
 WEB_PINCODE = environ.get("WEB_PINCODE", "")
 WEB_PINCODE = WEB_PINCODE.lower() == "true"
 
+# Web token auth (for file-selection UI)
+WEB_TOKEN_SECRET = environ.get("WEB_TOKEN_SECRET", "")
+WEB_TOKEN_TTL = environ.get("WEB_TOKEN_TTL", "")
+WEB_TOKEN_TTL = 900 if len(WEB_TOKEN_TTL) == 0 else int(WEB_TOKEN_TTL)
+
 AS_DOCUMENT = environ.get("AS_DOCUMENT", "")
 AS_DOCUMENT = AS_DOCUMENT.lower() == "true"
 
@@ -749,6 +754,8 @@ config_dict = {
     "USER_TD_SA": USER_TD_SA,
     "USE_SERVICE_ACCOUNTS": USE_SERVICE_ACCOUNTS,
     "WEB_PINCODE": WEB_PINCODE,
+    "WEB_TOKEN_SECRET": WEB_TOKEN_SECRET,
+    "WEB_TOKEN_TTL": WEB_TOKEN_TTL,
     "YT_DLP_OPTIONS": YT_DLP_OPTIONS,
 }
 
