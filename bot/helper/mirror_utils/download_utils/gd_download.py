@@ -29,6 +29,13 @@ from bot.helper.ext_utils.task_manager import (
 async def add_gd_download(link, path, listener, newname, org_link):
     drive = GoogleDriveHelper()
     name, mime_type, size, _, _ = await sync_to_async(drive.count, link)
+    # Try to fetch md5 checksum for duplicate prevention
+    try:
+        md5_hex = await sync_to_async(drive.get_file_md5, link)
+        if md5_hex:
+            listener.upload_details["md5_hash"] = md5_hex
+    except Exception:
+        pass
     if is_share_link(org_link):
         cget().request(
             "POST",

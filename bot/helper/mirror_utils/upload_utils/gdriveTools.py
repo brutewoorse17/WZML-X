@@ -181,7 +181,7 @@ class GoogleDriveHelper:
             .get(
                 fileId=file_id,
                 supportsAllDrives=True,
-                fields="name, id, mimeType, size",
+                fields="name, id, mimeType, size, md5Checksum",
             )
             .execute()
         )
@@ -763,11 +763,40 @@ class GoogleDriveHelper:
             token_service = self.__alt_authorize()
             if token_service is not None:
                 self.__service = token_service
+        # If stopDup is requested and name looks like an md5 hash, switch to checksum-based query
+        # Google Drive allows querying by md5Checksum for files (not folders)
+        # This improves duplicate detection when uploading exact same content with different names
+        md5_like = False
+        try:
+            import re
+            md5_like = bool(re.fullmatch(r"[a-fA-F0-9]{32}", fileName))
+        except Exception:
+            md5_like = False
         for no, (drive_name, drives_dict) in enumerate(merged_dict.items(), start=1):
             dir_id = drives_dict["drive_id"]
             index_url = drives_dict["index_link"]
             isRecur = False if isRecursive and len(dir_id) > 23 else isRecursive
-            response = self.__drive_query(dir_id, fileName, stopDup, isRecur, itemType)
+            # When stopDup and md5-like fileName, prefer md5Checksum query in the current drive
+            if stopDup and md5_like:
+                query = f"'{dir_id}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder' and md5Checksum = '{fileName.lower()}'"
+                try:
+                    response = (
+                        self.__service.files()
+                        .list(
+                            supportsAllDrives=True,
+                            includeItemsFromAllDrives=True,
+                            q=query,
+                            spaces="drive",
+                            pageSize=150,
+                            fields="files(id, name, mimeType, size, md5Checksum)",
+                            orderBy="folder, name asc",
+                        )
+                        .execute()
+                    )
+                except Exception:
+                    response = {"files": []}
+            else:
+                response = self.__drive_query(dir_id, fileName, stopDup, isRecur, itemType)
             if not response["files"]:
                 if noMulti:
                     break
@@ -896,6 +925,19 @@ class GoogleDriveHelper:
             self.__total_files,
             self.__total_folders,
         )
+
+    def get_file_md5(self, link):
+        try:
+            file_id = self.getIdFromUrl(link)
+        except Exception:
+            return None
+        try:
+            meta = self.__getFileMetadata(file_id)
+            if meta.get("mimeType") == self.__G_DRIVE_DIR_MIME_TYPE:
+                return None
+            return (meta.get("md5Checksum") or "").lower()
+        except Exception:
+            return None
 
     def __gDrive_file(self, filee):
         size = int(filee.get("size", 0))

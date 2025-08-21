@@ -47,8 +47,16 @@ async def stop_duplicate_check(name, listener):
         except Exception:
             name = None
     if name is not None:
+        # If we have a hash computed for the source (e.g., from Telegram or local file), prefer checksum-based search
+        # Attach hex md5 (32 chars) via listener.upload_details.get("md5_hash") if available
+        md5_hex = None
+        try:
+            md5_hex = listener.upload_details.get("md5_hash")
+        except Exception:
+            md5_hex = None
+        query_key = md5_hex if md5_hex and len(md5_hex) == 32 else name
         telegraph_content, contents_no = await sync_to_async(
-            GoogleDriveHelper().drive_list, name, stopDup=True
+            GoogleDriveHelper().drive_list, query_key, True
         )
         if telegraph_content:
             msg = BotTheme("STOP_DUPLICATE", content=contents_no)
