@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-from requests import post as rpost
-from markdown import markdown
-from random import choice
-from datetime import datetime
 from calendar import month_name
-from pycountry import countries as conn
+from datetime import datetime
+from random import choice
 from urllib.parse import quote as q
 
-from bot import bot, LOGGER, config_dict, user_data
-from bot.helper.telegram_helper.filters import CustomFilters
-from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.telegram_helper.message_utils import sendMessage, editMessage
-from bot.helper.telegram_helper.button_build import ButtonMaker
-from bot.helper.ext_utils.bot_utils import get_readable_time
-from pyrogram.handlers import MessageHandler, CallbackQueryHandler
+from markdown import markdown
+from pycountry import countries as conn
 from pyrogram.filters import command, regex
+from pyrogram.handlers import CallbackQueryHandler, MessageHandler
+from requests import post as rpost
 
+from bot import LOGGER, bot, config_dict, user_data
+from bot.helper.ext_utils.bot_utils import get_readable_time
+from bot.helper.telegram_helper.bot_commands import BotCommands
+from bot.helper.telegram_helper.button_build import ButtonMaker
+from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import editMessage, sendMessage
 
 GENRES_EMOJI = {
     "Action": "👊",
@@ -222,9 +222,7 @@ async def anilist(_, msg, aniid=None, u_id=None):
         user_id = msg.from_user.id
         squery = (msg.text).split(" ", 1)
         if len(squery) == 1:
-            await sendMessage(
-                msg, "<i>Provide AniList ID / Anime Name / MyAnimeList ID</i>"
-            )
+            await sendMessage(msg, "<i>Provide AniList ID / Anime Name / MyAnimeList ID</i>")
             return
         vars = {"search": squery[1]}
     else:
@@ -273,8 +271,7 @@ async def anilist(_, msg, aniid=None, u_id=None):
             for x in animeResp["genres"]
         )
         studios = ", ".join(
-            f"""<a href="{x['siteUrl']}">{x['name']}</a>"""
-            for x in animeResp["studios"]["nodes"]
+            f"""<a href="{x['siteUrl']}">{x['name']}</a>""" for x in animeResp["studios"]["nodes"]
         )
         source = animeResp["source"] or "-"
         hashtag = animeResp["hashtag"] or "N/A"
@@ -424,10 +421,7 @@ async def character(_, message, aniid=None, u_id=None):
         if "~!" in description and "!~" in description:  # Spoiler
             btn = ButtonMaker()
             sptext = (
-                description.split("~!", 1)[1]
-                .rsplit("!~", 1)[0]
-                .replace("~!", "")
-                .replace("!~", "")
+                description.split("~!", 1)[1].rsplit("!~", 1)[0].replace("~!", "").replace("!~", "")
             )
             btn.ibutton("🔍 View Spoiler", f"cha {user_id} spoil {siteid}")
             rlp_mk = btn.build_menu(1)
@@ -474,9 +468,7 @@ async def setCharacButtons(client, query):
 async def manga(_, message):
     search = message.text.split(" ", 1)
     if len(search) == 1:
-        await sendMessage(
-            message, "<b>Format :</b>\n<code>/manga</code> <i>[search manga]</i>"
-        )
+        await sendMessage(message, "<b>Format :</b>\n<code>/manga</code> <i>[search manga]</i>")
         return
     search = search[1]
     variables = {"search": search}
@@ -487,9 +479,7 @@ async def manga(_, message):
     )
     msg = ""
     if json:
-        title, title_native = json["title"].get("romaji", False), json["title"].get(
-            "native", False
-        )
+        title, title_native = json["title"].get("romaji", False), json["title"].get("native", False)
         start_date, status, score = (
             json["startDate"].get("year", False),
             json.get("status", False),
@@ -543,17 +533,13 @@ bot.add_handler(
 bot.add_handler(
     MessageHandler(
         character,
-        filters=command("character")
-        & CustomFilters.authorized
-        & ~CustomFilters.blacklisted,
+        filters=command("character") & CustomFilters.authorized & ~CustomFilters.blacklisted,
     )
 )
 bot.add_handler(
     MessageHandler(
         manga,
-        filters=command("manga")
-        & CustomFilters.authorized
-        & ~CustomFilters.blacklisted,
+        filters=command("manga") & CustomFilters.authorized & ~CustomFilters.blacklisted,
     )
 )
 bot.add_handler(

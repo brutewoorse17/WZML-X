@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-from pathlib import Path
-from traceback import format_exc
-from json import JSONDecodeError
 from io import BufferedReader
-from re import findall as re_findall
-from aiofiles.os import path as aiopath
+from json import JSONDecodeError
+from pathlib import Path
 from time import time
-from tenacity import (
-    retry,
-    wait_exponential,
-    stop_after_attempt,
-    retry_if_exception_type,
-)
+from traceback import format_exc
+
+from aiofiles.os import path as aiopath
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ContentTypeError
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from bot import LOGGER, user_data
+from bot.helper.ext_utils.fs_utils import get_mime_type
 from bot.helper.mirror_utils.upload_utils.ddlserver.gofile import Gofile
 from bot.helper.mirror_utils.upload_utils.ddlserver.streamtape import Streamtape
-from bot.helper.ext_utils.fs_utils import get_mime_type
 
 
 class ProgressFileReader(BufferedReader):
@@ -66,9 +66,7 @@ class DDLUploader:
         retry=retry_if_exception_type(Exception),
     )
     async def upload_aiohttp(self, url, file_path, req_file, data):
-        with ProgressFileReader(
-            filename=file_path, read_callback=self.__progress_callback
-        ) as file:
+        with ProgressFileReader(filename=file_path, read_callback=self.__progress_callback) as file:
             data[req_file] = file
             async with ClientSession() as self.__asyncSession:
                 async with self.__asyncSession.post(url, data=data) as resp:
@@ -95,9 +93,7 @@ class DDLUploader:
                     try:
                         login, key = api_key.split(":")
                     except IndexError:
-                        raise Exception(
-                            "StreamTape Login & Key not Found, Kindly Recheck !"
-                        )
+                        raise Exception("StreamTape Login & Key not Found, Kindly Recheck !")
                     nlink = await Streamtape(self, login, key).upload(file_path)
                     all_links["StreamTape"] = nlink
                 self.__processed_bytes = 0

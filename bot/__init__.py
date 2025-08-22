@@ -1,32 +1,33 @@
 #!/usr/bin/env python3
-from tzlocal import get_localzone
-from pytz import timezone
+from asyncio import Lock
 from datetime import datetime
 from inspect import signature
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from pyrogram import Client as tgClient, enums, utils as pyroutils
-from pymongo import MongoClient
-from asyncio import Lock
-from dotenv import load_dotenv, dotenv_values
-from threading import Thread
-from time import sleep, time
-from subprocess import Popen, run as srun
-from os import remove as osremove, path as ospath, environ, getcwd
-from aria2p import API as ariaAPI, Client as ariaClient
-from qbittorrentapi import Client as qbClient
-from socket import setdefaulttimeout
 from logging import (
-    getLogger,
-    Formatter,
-    FileHandler,
-    StreamHandler,
-    INFO,
     ERROR,
+    INFO,
+    FileHandler,
+    Formatter,
+    StreamHandler,
     basicConfig,
     error as log_error,
+    getLogger,
     info as log_info,
     warning as log_warning,
 )
+from os import environ, getcwd, path as ospath, remove as osremove
+from socket import setdefaulttimeout
+from subprocess import Popen, run as srun
+from threading import Thread
+from time import sleep, time
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from aria2p import API as ariaAPI, Client as ariaClient
+from dotenv import dotenv_values, load_dotenv
+from pymongo import MongoClient
+from pyrogram import Client as tgClient, enums, utils as pyroutils
+from pytz import timezone
+from qbittorrentapi import Client as qbClient
+from tzlocal import get_localzone
 from uvloop import install
 
 # from faulthandler import enable as faulthandler_enable
@@ -105,15 +106,11 @@ if DATABASE_URL:
     current_config = dict(dotenv_values("config.env"))
     old_config = db.settings.deployConfig.find_one({"_id": bot_id})
     if old_config is None:
-        db.settings.deployConfig.replace_one(
-            {"_id": bot_id}, current_config, upsert=True
-        )
+        db.settings.deployConfig.replace_one({"_id": bot_id}, current_config, upsert=True)
     else:
         del old_config["_id"]
     if old_config and old_config != current_config:
-        db.settings.deployConfig.replace_one(
-            {"_id": bot_id}, current_config, upsert=True
-        )
+        db.settings.deployConfig.replace_one({"_id": bot_id}, current_config, upsert=True)
     elif config_dict := db.settings.config.find_one({"_id": bot_id}):
         del config_dict["_id"]
         for key, value in config_dict.items():
@@ -522,22 +519,14 @@ if len(BOT_THEME) == 0:
 
 IMAGES = environ.get("IMAGES", "")
 IMAGES = (
-    IMAGES.replace("'", "")
-    .replace('"', "")
-    .replace("[", "")
-    .replace("]", "")
-    .replace(",", "")
+    IMAGES.replace("'", "").replace('"', "").replace("[", "").replace("]", "").replace(",", "")
 ).split()
 if IMAGES:
     STATUS_LIMIT = 2
 
 IMG_SEARCH = environ.get("IMG_SEARCH", "")
 IMG_SEARCH = (
-    IMG_SEARCH.replace("'", "")
-    .replace('"', "")
-    .replace("[", "")
-    .replace("]", "")
-    .replace(",", "")
+    IMG_SEARCH.replace("'", "").replace('"', "").replace("[", "").replace("]", "").replace(",", "")
 ).split()
 
 IMG_PAGE = environ.get("IMG_PAGE", "")

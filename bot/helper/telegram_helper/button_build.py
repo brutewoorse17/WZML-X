@@ -1,4 +1,4 @@
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 class ButtonMaker:
@@ -25,26 +25,16 @@ class ButtonMaker:
         if not position:
             self.__button.append(InlineKeyboardButton(text=key, callback_data=data))
         elif position == "header":
-            self.__header_button.append(
-                InlineKeyboardButton(text=key, callback_data=data)
-            )
+            self.__header_button.append(InlineKeyboardButton(text=key, callback_data=data))
         elif position == "f_body":
-            self.__first_body_button.append(
-                InlineKeyboardButton(text=key, callback_data=data)
-            )
+            self.__first_body_button.append(InlineKeyboardButton(text=key, callback_data=data))
         elif position == "l_body":
-            self.__last_body_button.append(
-                InlineKeyboardButton(text=key, callback_data=data)
-            )
+            self.__last_body_button.append(InlineKeyboardButton(text=key, callback_data=data))
         elif position == "footer":
-            self.__footer_button.append(
-                InlineKeyboardButton(text=key, callback_data=data)
-            )
+            self.__footer_button.append(InlineKeyboardButton(text=key, callback_data=data))
 
     def build_menu(self, b_cols=1, h_cols=8, fb_cols=2, lb_cols=2, f_cols=8):
-        menu = [
-            self.__button[i : i + b_cols] for i in range(0, len(self.__button), b_cols)
-        ]
+        menu = [self.__button[i : i + b_cols] for i in range(0, len(self.__button), b_cols)]
         if self.__header_button:
             if len(self.__header_button) > h_cols:
                 header_buttons = [

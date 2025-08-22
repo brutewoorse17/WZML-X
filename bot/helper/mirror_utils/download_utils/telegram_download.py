@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
-from logging import getLogger, ERROR
-from time import time
 from asyncio import Lock
+from logging import ERROR, getLogger
+from time import time
+
 from pyrogram import Client
 
 from bot import (
     LOGGER,
+    bot,
     download_dict,
     download_dict_lock,
     non_queued_dl,
     queue_dict_lock,
-    bot,
     user,
-    IS_PREMIUM_USER,
-)
-from bot.helper.mirror_utils.status_utils.telegram_status import TelegramStatus
-from bot.helper.mirror_utils.status_utils.queue_status import QueueStatus
-from bot.helper.telegram_helper.message_utils import (
-    sendStatusMessage,
-    sendMessage,
-    delete_links,
 )
 from bot.helper.ext_utils.task_manager import (
     is_queued,
     limit_checker,
     stop_duplicate_check,
+)
+from bot.helper.mirror_utils.status_utils.queue_status import QueueStatus
+from bot.helper.mirror_utils.status_utils.telegram_status import TelegramStatus
+from bot.helper.telegram_helper.message_utils import (
+    delete_links,
+    sendMessage,
+    sendStatusMessage,
 )
 
 global_lock = Lock()
@@ -33,7 +33,6 @@ getLogger("pyrogram").setLevel(ERROR)
 
 
 class TelegramDownloadHelper:
-
     def __init__(self, listener):
         self.name = ""
         self.__processed_bytes = 0
@@ -134,9 +133,7 @@ class TelegramDownloadHelper:
         if session == "user":
             self.__client = user
             if not self.__listener.isSuperGroup:
-                await sendMessage(
-                    message, "Use SuperGroup to download this Link with User!"
-                )
+                await sendMessage(message, "Use SuperGroup to download this Link with User!")
                 return
         elif session == "user_sess":
             self.__client = None
@@ -191,6 +188,4 @@ class TelegramDownloadHelper:
 
     async def cancel_download(self):
         self.__is_cancelled = True
-        LOGGER.info(
-            f"Cancelling download via User: [ Name: {self.name} ID: {self.__id} ]"
-        )
+        LOGGER.info(f"Cancelling download via User: [ Name: {self.name} ID: {self.__id} ]")

@@ -1,6 +1,7 @@
-from anytree import NodeMixin
-from re import findall as re_findall
 from os import environ
+from re import findall as re_findall
+
+from anytree import NodeMixin
 
 DOWNLOAD_DIR = environ.get("DOWNLOAD_DIR", "")
 if len(DOWNLOAD_DIR) == 0:
@@ -60,9 +61,7 @@ def make_tree(res, aria2=False):
                         None,
                     )
                     if current_node is None:
-                        previous_node = TorNode(
-                            folders[j], parent=previous_node, is_folder=True
-                        )
+                        previous_node = TorNode(folders[j], parent=previous_node, is_folder=True)
                     else:
                         previous_node = current_node
                 TorNode(
@@ -98,9 +97,7 @@ def make_tree(res, aria2=False):
                         None,
                     )
                     if current_node is None:
-                        previous_node = TorNode(
-                            folders[j], parent=previous_node, is_folder=True
-                        )
+                        previous_node = TorNode(folders[j], parent=previous_node, is_folder=True)
                     else:
                         previous_node = current_node
                 TorNode(
@@ -110,9 +107,7 @@ def make_tree(res, aria2=False):
                     size=i["length"],
                     priority=priority,
                     file_id=i["index"],
-                    progress=round(
-                        (int(i["completedLength"]) / int(i["length"])) * 100, 5
-                    ),
+                    progress=round((int(i["completedLength"]) / int(i["length"])) * 100, 5),
                 )
             else:
                 TorNode(
@@ -122,9 +117,7 @@ def make_tree(res, aria2=False):
                     size=i["length"],
                     priority=priority,
                     file_id=i["index"],
-                    progress=round(
-                        (int(i["completedLength"]) / int(i["length"])) * 100, 5
-                    ),
+                    progress=round((int(i["completedLength"]) / int(i["length"])) * 100, 5),
                 )
     return create_list(parent, ["", 0])
 
@@ -144,22 +137,22 @@ def create_list(par, msg):
         if i.is_folder:
             msg[0] += "<li>"
             if i.name != ".unwanted":
-                msg[
-                    0
-                ] += f'<input type="checkbox" name="foldernode_{msg[1]}"> <label for="{i.name}">{i.name}</label>'
+                msg[0] += (
+                    f'<input type="checkbox" name="foldernode_{msg[1]}"> <label for="{i.name}">{i.name}</label>'
+                )
             create_list(i, msg)
             msg[0] += "</li>"
             msg[1] += 1
         else:
             msg[0] += "<li>"
             if i.priority == 0:
-                msg[
-                    0
-                ] += f'<input type="checkbox" name="filenode_{i.file_id}" data-size="{i.size}"> <label data-size="{i.size}" for="filenode_{i.file_id}">{i.name}</label> / {i.progress}%'
+                msg[0] += (
+                    f'<input type="checkbox" name="filenode_{i.file_id}" data-size="{i.size}"> <label data-size="{i.size}" for="filenode_{i.file_id}">{i.name}</label> / {i.progress}%'
+                )
             else:
-                msg[
-                    0
-                ] += f'<input type="checkbox" checked name="filenode_{i.file_id}" data-size="{i.size}"> <label data-size="{i.size}" for="filenode_{i.file_id}">{i.name}</label> / {i.progress}%'
+                msg[0] += (
+                    f'<input type="checkbox" checked name="filenode_{i.file_id}" data-size="{i.size}"> <label data-size="{i.size}" for="filenode_{i.file_id}">{i.name}</label> / {i.progress}%'
+                )
             msg[0] += f'<input type="hidden" value="off" name="filenode_{i.file_id}">'
             msg[0] += "</li>"
 

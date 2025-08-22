@@ -1,17 +1,17 @@
 from asyncio import create_subprocess_exec, gather
 from asyncio.subprocess import PIPE
-from re import findall as re_findall
-from json import loads
-from aiofiles.os import path as aiopath, mkdir, listdir
-from aiofiles import open as aiopen
 from configparser import ConfigParser
-from random import randrange
+from json import loads
 from logging import getLogger
+from random import randrange
+from re import findall as re_findall
 
-from bot import config_dict, GLOBAL_EXTENSION_FILTER
+from aiofiles import open as aiopen
+from aiofiles.os import listdir, mkdir, path as aiopath
+
+from bot import GLOBAL_EXTENSION_FILTER, config_dict
 from bot.helper.ext_utils.bot_utils import cmd_exec, sync_to_async
-from bot.helper.ext_utils.fs_utils import get_mime_type, count_files_and_folders
-
+from bot.helper.ext_utils.fs_utils import count_files_and_folders, get_mime_type
 
 LOGGER = getLogger(__name__)
 
@@ -119,11 +119,7 @@ class RcloneTransferHelper:
             await self.__listener.onDownloadComplete()
         elif return_code != -9:
             error = (await self.__proc.stderr.read()).decode().strip()
-            if (
-                not error
-                and remote_type == "drive"
-                and config_dict["USE_SERVICE_ACCOUNTS"]
-            ):
+            if not error and remote_type == "drive" and config_dict["USE_SERVICE_ACCOUNTS"]:
                 error = "Mostly your service accounts don't have access to this drive!"
             LOGGER.error(error)
 
@@ -171,9 +167,7 @@ class RcloneTransferHelper:
                 LOGGER.info(f"Download with service account {remote}")
 
         rcflags = self.__listener.rcFlags or config_dict["RCLONE_FLAGS"]
-        cmd = self.__getUpdatedCommand(
-            config_path, f"{remote}:{rc_path}", path, rcflags, "copy"
-        )
+        cmd = self.__getUpdatedCommand(config_path, f"{remote}:{rc_path}", path, rcflags, "copy")
 
         if (
             remote_type == "drive"
@@ -219,9 +213,7 @@ class RcloneTransferHelper:
                 else f"https://drive.google.com/uc?id={fid}&export=download"
             )
         elif code != -9:
-            LOGGER.error(
-                f"while getting drive link. Path: {destination}. Stderr: {err}"
-            )
+            LOGGER.error(f"while getting drive link. Path: {destination}. Stderr: {err}")
             link = ""
         return link, destination
 
@@ -236,11 +228,7 @@ class RcloneTransferHelper:
             return False
         elif return_code != 0:
             error = (await self.__proc.stderr.read()).decode().strip()
-            if (
-                not error
-                and remote_type == "drive"
-                and config_dict["USE_SERVICE_ACCOUNTS"]
-            ):
+            if not error and remote_type == "drive" and config_dict["USE_SERVICE_ACCOUNTS"]:
                 error = "Mostly your service accounts don't have access to this drive!"
             LOGGER.error(error)
             if (
@@ -316,12 +304,8 @@ class RcloneTransferHelper:
                 LOGGER.info(f"Upload with service account {fremote}")
 
         rcflags = self.__listener.rcFlags or config_dict["RCLONE_FLAGS"]
-        method = (
-            "move" if not self.__listener.seed or self.__listener.newDir else "copy"
-        )
-        cmd = self.__getUpdatedCommand(
-            fconfig_path, path, f"{fremote}:{rc_path}", rcflags, method
-        )
+        method = "move" if not self.__listener.seed or self.__listener.newDir else "copy"
+        cmd = self.__getUpdatedCommand(fconfig_path, path, f"{fremote}:{rc_path}", rcflags, method)
         if (
             remote_type == "drive"
             and not config_dict["RCLONE_FLAGS"]
@@ -362,9 +346,7 @@ class RcloneTransferHelper:
             link, size, files, folders, mime_type, self.name, destination
         )
 
-    async def clone(
-        self, config_path, src_remote, src_path, destination, rcflags, mime_type
-    ):
+    async def clone(self, config_path, src_remote, src_path, destination, rcflags, mime_type):
         dst_remote, dst_path = destination.split(":", 1)
 
         try:
@@ -388,9 +370,7 @@ class RcloneTransferHelper:
             if src_remote_type == "drive" and dst_remote_type != "drive":
                 cmd.append("--drive-acknowledge-abuse")
             elif dst_remote_type == "drive" and src_remote_type != "drive":
-                cmd.extend(
-                    ("--drive-chunk-size", "64M", "--drive-upload-cutoff", "32M")
-                )
+                cmd.extend(("--drive-chunk-size", "64M", "--drive-upload-cutoff", "32M"))
             elif src_remote_type == "drive":
                 cmd.extend(("--tpslimit", "3", "--transfers", "3"))
 
@@ -426,9 +406,7 @@ class RcloneTransferHelper:
                 if code == 0:
                     return res, destination
                 elif code != -9:
-                    LOGGER.error(
-                        f"while getting link. Path: {destination} | Stderr: {err}"
-                    )
+                    LOGGER.error(f"while getting link. Path: {destination} | Stderr: {err}")
                     await self.__listener.onUploadError(err[:4000])
                     return None, None
 
@@ -468,7 +446,7 @@ class RcloneTransferHelper:
     @staticmethod
     async def __get_remote_options(config_path, remote):
         config = ConfigParser()
-        async with aiopen(config_path, "r") as f:
+        async with aiopen(config_path) as f:
             contents = await f.read()
             config.read_string(contents)
         options = config.options(remote)

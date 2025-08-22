@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from time import time
 
-from bot import aria2, LOGGER
+from bot import LOGGER, aria2
 from bot.helper.ext_utils.bot_utils import (
     EngineStatus,
     MirrorStatus,
@@ -19,7 +19,6 @@ def get_download(gid):
 
 
 class Aria2Status:
-
     def __init__(self, gid, listener, seeding=False, queued=False):
         self.__gid = gid
         self.__download = get_download(gid)

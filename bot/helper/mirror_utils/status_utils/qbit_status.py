@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from asyncio import sleep
 
-from bot import LOGGER, get_client, QbTorrents, qb_listener_lock
+from bot import LOGGER, QbTorrents, get_client, qb_listener_lock
 from bot.helper.ext_utils.bot_utils import (
     EngineStatus,
     MirrorStatus,
@@ -20,7 +20,6 @@ def get_download(client, tag):
 
 
 class QbittorrentStatus:
-
     def __init__(self, listener, seeding=False, queued=False):
         self.__client = get_client()
         self.__listener = listener
@@ -108,9 +107,7 @@ class QbittorrentStatus:
 
     async def cancel_download(self):
         self.__update()
-        await sync_to_async(
-            self.__client.torrents_pause, torrent_hashes=self.__info.hash
-        )
+        await sync_to_async(self.__client.torrents_pause, torrent_hashes=self.__info.hash)
         if not self.seeding:
             if self.queued:
                 LOGGER.info(f"Cancelling QueueDL: {self.name()}")
@@ -125,9 +122,7 @@ class QbittorrentStatus:
                 torrent_hashes=self.__info.hash,
                 delete_files=True,
             )
-            await sync_to_async(
-                self.__client.torrents_delete_tags, tags=self.__info.tags
-            )
+            await sync_to_async(self.__client.torrents_delete_tags, tags=self.__info.tags)
             async with qb_listener_lock:
                 if self.__info.tags in QbTorrents:
                     del QbTorrents[self.__info.tags]

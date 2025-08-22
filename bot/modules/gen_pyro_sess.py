@@ -1,38 +1,33 @@
 #!/usr/bin/env python3
-from time import time
-from aiofiles.os import remove as aioremove
-from asyncio import sleep, wrap_future, Lock
+from asyncio import Lock, sleep, wrap_future
 from functools import partial
+from time import time
+
+from aiofiles.os import remove as aioremove
 from cryptography.fernet import Fernet
-
 from pyrogram import Client
-from pyrogram.types import ForceReply
 from pyrogram.enums import ChatType
-from pyrogram.filters import command, user, text, private
-from pyrogram.handlers import MessageHandler
 from pyrogram.errors import (
-    SessionPasswordNeeded,
-    FloodWait,
-    PhoneNumberInvalid,
     ApiIdInvalid,
-    PhoneCodeInvalid,
+    FloodWait,
     PhoneCodeExpired,
-    UsernameNotOccupied,
-    ChatAdminRequired,
-    PeerIdInvalid,
+    PhoneCodeInvalid,
+    PhoneNumberInvalid,
+    SessionPasswordNeeded,
 )
+from pyrogram.filters import command, private, text, user
+from pyrogram.handlers import MessageHandler
 
-from bot import bot, LOGGER, bot_cache, bot_name
+from bot import bot, bot_cache, bot_name
+from bot.helper.ext_utils.bot_utils import new_task, new_thread
 from bot.helper.telegram_helper.button_build import ButtonMaker
-from bot.helper.ext_utils.bot_utils import new_thread, new_task
-from bot.helper.telegram_helper.message_utils import (
-    sendMessage,
-    editMessage,
-    deleteMessage,
-    sendFile,
-    sendCustomMsg,
-)
 from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import (
+    deleteMessage,
+    editMessage,
+    sendCustomMsg,
+    sendMessage,
+)
 
 session_dict = {}
 session_lock = Lock()
@@ -110,11 +105,9 @@ Get from https://my.telegram.org</i>.
             if session_dict["CONFIRM_PHN"].lower() in ["y", "yes"]:
                 break
     try:
-        pyro_client = Client(
-            f"WZML-X-{message.from_user.id}", api_id=api_id, api_hash=api_hash
-        )
+        pyro_client = Client(f"WZML-X-{message.from_user.id}", api_id=api_id, api_hash=api_hash)
     except Exception as e:
-        await editMessage(sess_msg, f"<b>Client Error:</b> {str(e)}")
+        await editMessage(sess_msg, f"<b>Client Error:</b> {e!s}")
         return
     try:
         await pyro_client.connect()
@@ -188,9 +181,9 @@ Get from https://my.telegram.org</i>.
         try:
             await pyro_client.check_password(password)
         except Exception as e:
-            return await editMessage(sess_msg, f"<b>Password Check Error:</b> {str(e)}")
+            return await editMessage(sess_msg, f"<b>Password Check Error:</b> {e!s}")
     except Exception as e:
-        return await editMessage(sess_msg, f"<b>Sign In Error:</b> {str(e)}")
+        return await editMessage(sess_msg, f"<b>Sign In Error:</b> {e!s}")
     try:
         session_string = await pyro_client.export_session_string()
         await pyro_client.send_message(
@@ -204,7 +197,7 @@ Get from https://my.telegram.org</i>.
             "⌬ <u><i><b>Pyrogram String Session Generator</b></i></u> \n\n➲ <b>String Session is Successfully Generated ( Saved Messages ).</b>",
         )
     except Exception as e:
-        return await editMessage(sess_msg, f"<b>Export Session Error:</b> {str(e)}")
+        return await editMessage(sess_msg, f"<b>Export Session Error:</b> {e!s}")
     try:
         await aioremove(f"WZML-X-{message.from_user.id}.session")
         await aioremove(f"WZML-X-{message.from_user.id}.session-journal")
@@ -229,9 +222,7 @@ async def invoke(client, message, key):
     user_id = message.from_user.id
     start_time = time()
     handler = client.add_handler(
-        MessageHandler(
-            partial(set_details, newkey=key), filters=user(user_id) & text & private
-        ),
+        MessageHandler(partial(set_details, newkey=key), filters=user(user_id) & text & private),
         group=-1,
     )
     while not bool(session_dict.get(key)):
@@ -293,7 +284,5 @@ async def get_decrypt_key(client, message):
 
 
 bot.add_handler(
-    MessageHandler(
-        genPyroString, filters=command("exportsession") & private & CustomFilters.sudo
-    )
+    MessageHandler(genPyroString, filters=command("exportsession") & private & CustomFilters.sudo)
 )

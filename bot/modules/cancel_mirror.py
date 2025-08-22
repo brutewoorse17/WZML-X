@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
 from asyncio import sleep
-from pyrogram.handlers import MessageHandler, CallbackQueryHandler
-from pyrogram.filters import command, regex
 
-from bot import download_dict, bot, bot_name, download_dict_lock, OWNER_ID, user_data
-from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.telegram_helper.filters import CustomFilters
-from bot.helper.telegram_helper.message_utils import (
-    sendMessage,
-    deleteMessage,
-    auto_delete_message,
-)
+from pyrogram.filters import command, regex
+from pyrogram.handlers import CallbackQueryHandler, MessageHandler
+
+from bot import OWNER_ID, bot, bot_name, download_dict, download_dict_lock, user_data
 from bot.helper.ext_utils.bot_utils import (
-    getDownloadByGid,
-    getAllDownload,
     MirrorStatus,
+    getAllDownload,
+    getDownloadByGid,
     new_task,
 )
 from bot.helper.telegram_helper import button_build
+from bot.helper.telegram_helper.bot_commands import BotCommands
+from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import (
+    auto_delete_message,
+    deleteMessage,
+    sendMessage,
+)
 
 
 async def cancel_mirror(_, message):
@@ -108,7 +109,7 @@ async def cancel_all_update(_, query):
 bot.add_handler(
     MessageHandler(
         cancel_mirror,
-        filters=regex(f"^/{BotCommands.CancelMirror}(_\w+)?(?!all)")
+        filters=regex(rf"^/{BotCommands.CancelMirror}(_\w+)?(?!all)")
         & CustomFilters.authorized
         & ~CustomFilters.blacklisted,
     )

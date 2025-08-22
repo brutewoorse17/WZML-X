@@ -1,32 +1,32 @@
 #!/usr/bin/env python3
-from time import time
 from asyncio import Event
+from time import time
 
 from bot import (
+    LOGGER,
     bot_cache,
     config_dict,
+    download_dict,
+    non_queued_dl,
+    non_queued_up,
+    queue_dict_lock,
     queued_dl,
     queued_up,
-    non_queued_up,
-    non_queued_dl,
-    queue_dict_lock,
-    LOGGER,
     user_data,
-    download_dict,
 )
-from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
-from bot.helper.ext_utils.fs_utils import get_base_name, check_storage_threshold
 from bot.helper.ext_utils.bot_utils import (
+    checking_access,
+    get_readable_file_size,
+    get_readable_time,
+    get_telegraph_list,
     get_user_tasks,
     getdailytasks,
     sync_to_async,
-    get_telegraph_list,
-    get_readable_file_size,
-    checking_access,
-    get_readable_time,
 )
-from bot.helper.telegram_helper.message_utils import forcesub, check_botpm
+from bot.helper.ext_utils.fs_utils import check_storage_threshold, get_base_name
+from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
 from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import check_botpm, forcesub
 from bot.helper.themes import BotTheme
 
 
@@ -76,9 +76,9 @@ async def is_queued(uid):
         async with queue_dict_lock:
             dl = len(non_queued_dl)
             up = len(non_queued_up)
-            if (
-                all_limit and dl + up >= all_limit and (not dl_limit or dl >= dl_limit)
-            ) or (dl_limit and dl >= dl_limit):
+            if (all_limit and dl + up >= all_limit and (not dl_limit or dl >= dl_limit)) or (
+                dl_limit and dl >= dl_limit
+            ):
                 added_to_queue = True
                 event = Event()
                 queued_dl[uid] = event
@@ -178,9 +178,7 @@ async def limit_checker(
         if GDRIVE_LIMIT := config_dict["GDRIVE_LIMIT"]:
             limit = GDRIVE_LIMIT * 1024**3
             if size > limit:
-                limit_exceeded = (
-                    f"Google drive limit is {get_readable_file_size(limit)}"
-                )
+                limit_exceeded = f"Google drive limit is {get_readable_file_size(limit)}"
     elif isYtdlp:
         if YTDLP_LIMIT := config_dict["YTDLP_LIMIT"]:
             limit = YTDLP_LIMIT * 1024**3
@@ -205,16 +203,12 @@ async def limit_checker(
             if size > limit:
                 limit_exceeded = f"Leech limit is {get_readable_file_size(limit)}"
 
-        if (
-            STORAGE_THRESHOLD := config_dict["STORAGE_THRESHOLD"]
-        ) and not listener.isClone:
+        if (STORAGE_THRESHOLD := config_dict["STORAGE_THRESHOLD"]) and not listener.isClone:
             arch = any([listener.compress, listener.extract])
             limit = STORAGE_THRESHOLD * 1024**3
             acpt = await sync_to_async(check_storage_threshold, size, limit, arch)
             if not acpt:
-                limit_exceeded = (
-                    f"You must leave {get_readable_file_size(limit)} free storage."
-                )
+                limit_exceeded = f"You must leave {get_readable_file_size(limit)} free storage."
 
         if config_dict["DAILY_TASK_LIMIT"] and config_dict[
             "DAILY_TASK_LIMIT"
@@ -223,9 +217,7 @@ async def limit_checker(
         else:
             ttask = await getdailytasks(user_id, increase_task=True)
             LOGGER.info(f"User: {user_id} | Daily Tasks: {ttask}")
-        if (
-            DAILY_MIRROR_LIMIT := config_dict["DAILY_MIRROR_LIMIT"]
-        ) and not listener.isLeech:
+        if (DAILY_MIRROR_LIMIT := config_dict["DAILY_MIRROR_LIMIT"]) and not listener.isLeech:
             limit = DAILY_MIRROR_LIMIT * 1024**3
             if size >= (
                 limit - await getdailytasks(user_id, check_mirror=True)
@@ -249,7 +241,9 @@ async def limit_checker(
                 )
     if limit_exceeded:
         if size:
-            return f"{limit_exceeded}.\nYour List/File/Folder size is {get_readable_file_size(size)}."
+            return (
+                f"{limit_exceeded}.\nYour List/File/Folder size is {get_readable_file_size(size)}."
+            )
         elif isPlayList != 0:
             return f"{limit_exceeded}.\nYour playlist has {isPlayList} files."
 
@@ -274,15 +268,11 @@ async def task_utils(message):
             _msg, button = await check_botpm(message, button)
             if _msg:
                 msg.append(_msg)
-    if (uti := config_dict["USER_TIME_INTERVAL"]) != 0 and (
-        ut := await timeval_check(user_id)
-    ):
+    if (uti := config_dict["USER_TIME_INTERVAL"]) != 0 and (ut := await timeval_check(user_id)):
         msg.append(
             f"Please Wait {get_readable_time(ut)}, Users have time interval Restrictions for {get_readable_time(uti)}."
         )
-    if (bmax_tasks := config_dict["BOT_MAX_TASKS"]) and len(
-        download_dict
-    ) >= bmax_tasks:
+    if (bmax_tasks := config_dict["BOT_MAX_TASKS"]) and len(download_dict) >= bmax_tasks:
         msg.append(
             f"Bot Max Tasks limit exceeded.\nBot max tasks limit is {bmax_tasks}.\nPlease wait for the completion of other tasks."
         )

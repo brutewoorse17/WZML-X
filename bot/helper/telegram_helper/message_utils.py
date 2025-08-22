@@ -1,54 +1,53 @@
 #!/usr/bin/env python3
-from traceback import format_exc
 from asyncio import sleep
-from aiofiles.os import remove as aioremove
 from random import choice as rchoice
-from time import time
 from re import match as re_match
-from cryptography.fernet import InvalidToken
+from time import time
+from traceback import format_exc
 
+from aiofiles.os import remove as aioremove
+from cryptography.fernet import InvalidToken
 from pyrogram import Client
 from pyrogram.enums import ParseMode
-from pyrogram.types import InputMediaPhoto
 from pyrogram.errors import (
-    ReplyMarkupInvalid,
-    FloodWait,
-    PeerIdInvalid,
     ChannelInvalid,
+    FloodWait,
+    MediaEmpty,
+    MessageEmpty,
+    MessageNotModified,
+    PeerIdInvalid,
+    PhotoInvalidDimensions,
+    ReplyMarkupInvalid,
     RPCError,
     UserNotParticipant,
-    MessageNotModified,
-    MessageEmpty,
-    PhotoInvalidDimensions,
     WebpageCurlFailed,
-    MediaEmpty,
 )
+from pyrogram.types import InputMediaPhoto
 
 from bot import (
-    config_dict,
-    user_data,
-    categories_dict,
-    bot_cache,
     LOGGER,
-    bot_name,
-    status_reply_dict,
-    status_reply_dict_lock,
     Interval,
     bot,
-    user,
+    bot_cache,
+    bot_name,
+    categories_dict,
+    config_dict,
     download_dict_lock,
+    status_reply_dict,
+    status_reply_dict_lock,
+    user,
+    user_data,
 )
 from bot.helper.ext_utils.bot_utils import (
+    download_image_url,
+    fetch_user_dumps,
+    fetch_user_tds,
     get_readable_message,
     setInterval,
     sync_to_async,
-    download_image_url,
-    fetch_user_tds,
-    fetch_user_dumps,
-    new_thread,
 )
-from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.ext_utils.exceptions import TgLinkException
+from bot.helper.telegram_helper.button_build import ButtonMaker
 
 
 async def sendMessage(message, text, buttons=None, photo=None, **kwargs):
@@ -72,7 +71,7 @@ async def sendMessage(message, text, buttons=None, photo=None, **kwargs):
                 await sendMessage(message, text, buttons, des_dir)
                 await aioremove(des_dir)
                 return
-            except Exception as e:
+            except Exception:
                 LOGGER.error(format_exc())
         return await message.reply(
             text=text,
@@ -82,9 +81,7 @@ async def sendMessage(message, text, buttons=None, photo=None, **kwargs):
             reply_markup=buttons,
             reply_to_message_id=(
                 rply.id
-                if (rply := message.reply_to_message)
-                and not rply.text
-                and not rply.caption
+                if (rply := message.reply_to_message) and not rply.text and not rply.caption
                 else None
             ),
             **kwargs,
@@ -122,7 +119,7 @@ async def sendCustomMsg(chat_id, text, buttons=None, photo=None, debug=False):
                 await sendCustomMsg(chat_id, text, buttons, des_dir)
                 await aioremove(des_dir)
                 return
-            except Exception as e:
+            except Exception:
                 LOGGER.error(format_exc())
         return await bot.send_message(
             chat_id=chat_id,
@@ -211,13 +208,9 @@ async def editMessage(message, text, buttons=None, photo=None):
         if message.media:
             if photo:
                 photo = rchoice(config_dict["IMAGES"]) if photo == "IMAGES" else photo
-                return await message.edit_media(
-                    InputMediaPhoto(photo, text), reply_markup=buttons
-                )
+                return await message.edit_media(InputMediaPhoto(photo, text), reply_markup=buttons)
             return await message.edit_caption(caption=text, reply_markup=buttons)
-        await message.edit(
-            text=text, disable_web_page_preview=True, reply_markup=buttons
-        )
+        await message.edit(text=text, disable_web_page_preview=True, reply_markup=buttons)
     except FloodWait as f:
         LOGGER.warning(str(f))
         await sleep(f.value * 1.2)
@@ -335,9 +328,7 @@ async def get_tg_link_content(link, user_id, decrypter=None):
         )
     else:
         private = True
-        msg = re_match(
-            r"tg:\/\/(openmessage)\?user_id=([0-9]+)&message_id=([0-9]+)", link
-        )
+        msg = re_match(r"tg:\/\/(openmessage)\?user_id=([0-9]+)&message_id=([0-9]+)", link)
         if not (user or user_sess):
             raise TgLinkException(
                 "USER_SESSION_STRING or Private User Session required for this private link!"
@@ -379,9 +370,7 @@ async def get_tg_link_content(link, user_id, decrypter=None):
                 in_memory=True,
                 no_updates=True,
             ) as usession:
-                user_message = await usession.get_messages(
-                    chat_id=chat, message_ids=msg_id
-                )
+                user_message = await usession.get_messages(chat_id=chat, message_ids=msg_id)
         except InvalidToken:
             raise TgLinkException("Provided Decryption Key is Invalid, Recheck & Retry")
         except Exception as e:
@@ -417,9 +406,7 @@ async def update_all_messages(force=False):
     async with status_reply_dict_lock:
         for chat_id in list(status_reply_dict.keys()):
             if status_reply_dict[chat_id] and msg != status_reply_dict[chat_id][0].text:
-                rmsg = await editMessage(
-                    status_reply_dict[chat_id][0], msg, buttons, "IMAGES"
-                )
+                rmsg = await editMessage(status_reply_dict[chat_id][0], msg, buttons, "IMAGES")
                 if isinstance(rmsg, str) and rmsg.startswith("Telegram says: [400"):
                     del status_reply_dict[chat_id]
                     continue
@@ -445,9 +432,7 @@ async def sendStatusMessage(msg):
                 message.text = progress
         status_reply_dict[chat_id] = [message, time()]
         if not Interval:
-            Interval.append(
-                setInterval(config_dict["STATUS_UPDATE_INTERVAL"], update_all_messages)
-            )
+            Interval.append(setInterval(config_dict["STATUS_UPDATE_INTERVAL"], update_all_messages))
 
 
 async def open_category_btns(message):
@@ -472,7 +457,7 @@ async def open_category_btns(message):
             if _tick:
                 _tick, cat_name = False, _name
     buttons.ibutton("Cancel", f"scat {user_id} {msg_id} scancel", "footer")
-    buttons.ibutton(f"Done (60)", f"scat {user_id} {msg_id} sdone", "footer")
+    buttons.ibutton("Done (60)", f"scat {user_id} {msg_id} sdone", "footer")
     prompt = await sendMessage(
         message,
         f"<b>Select the category where you want to upload</b>\n\n<i><b>Upload Category:</b></i> <code>{cat_name}</code>\n\n<b>Timeout:</b> 60 sec",
@@ -508,7 +493,7 @@ async def open_dump_btns(message):
                 _tick, cat_name = False, _name
     buttons.ibutton("Upload in All", f"dcat {user_id} {msg_id} All", "header")
     buttons.ibutton("Cancel", f"dcat {user_id} {msg_id} dcancel", "footer")
-    buttons.ibutton(f"Done (60)", f"dcat {user_id} {msg_id} ddone", "footer")
+    buttons.ibutton("Done (60)", f"dcat {user_id} {msg_id} ddone", "footer")
     prompt = await sendMessage(
         message,
         f"<b>Select the Dump category where you want to upload</b>\n\n<i><b>Upload Category:</b></i> <code>{cat_name}</code>\n\n<b>Timeout:</b> 60 sec",
@@ -569,11 +554,9 @@ async def check_botpm(message, button=None):
         )
         await deleteMessage(temp_msg)
         return None, button
-    except Exception as e:
+    except Exception:
         if button is None:
             button = ButtonMaker()
         _msg = "<i>You didn't START the bot in PM (Private)</i>"
-        button.ubutton(
-            "Start Bot Now", f"https://t.me/{bot_name}?start=start", "header"
-        )
+        button.ubutton("Start Bot Now", f"https://t.me/{bot_name}?start=start", "header")
         return _msg, button

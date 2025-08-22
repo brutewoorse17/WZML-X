@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 #!/usr/bin/env python3
-from os import path as ospath
-from os import walk
+from os import path as ospath, walk
 from random import choice
 
-from aiofiles.os import path as aiopath
-from aiofiles.os import rename as aiorename
+from aiofiles.os import path as aiopath, rename as aiorename
 from aiohttp import ClientSession
 
-from bot import LOGGER
 from bot.helper.ext_utils.bot_utils import sync_to_async
 
 
@@ -24,9 +21,7 @@ class Gofile:
             return False
 
         async with ClientSession() as session:
-            async with session.get(
-                f"https://api.gofile.io/accounts/getid?token={token}"
-            ) as resp:
+            async with session.get(f"https://api.gofile.io/accounts/getid?token={token}") as resp:
                 res = await resp.json()
                 if res["status"] == "ok":
                     acc_id = res["data"]["id"]
@@ -55,9 +50,7 @@ class Gofile:
             raise Exception
 
         async with ClientSession() as session:
-            async with session.get(
-                f"{self.api_url}accounts/getid?token={self.token}"
-            ) as resp:
+            async with session.get(f"{self.api_url}accounts/getid?token={self.token}") as resp:
                 res = await resp.json()
                 if res["status"] == "ok":
                     acc_id = res["data"]["id"]
@@ -78,9 +71,7 @@ class Gofile:
         folder_data = await self.create_folder(
             (await self.__getAccount())["rootFolder"], ospath.basename(path)
         )
-        await self.__setOptions(
-            contentId=folder_data["folderId"], option="public", value="true"
-        )
+        await self.__setOptions(contentId=folder_data["folderId"], option="public", value="true")
 
         folderId = folderId or folder_data["folderId"]
         folder_ids = {".": folderId}
@@ -88,12 +79,8 @@ class Gofile:
             rel_path = ospath.relpath(root, path)
             parentFolderId = folder_ids.get(ospath.dirname(rel_path), folderId)
             folder_name = ospath.basename(rel_path)
-            currFolderId = (await self.create_folder(parentFolderId, folder_name))[
-                "folderId"
-            ]
-            await self.__setOptions(
-                contentId=currFolderId, option="public", value="true"
-            )
+            currFolderId = (await self.create_folder(parentFolderId, folder_name))["folderId"]
+            await self.__setOptions(contentId=currFolderId, option="public", value="true")
             folder_ids[rel_path] = currFolderId
 
             for file in files:
@@ -131,9 +118,7 @@ class Gofile:
 
         if self.dluploader.is_cancelled:
             return
-        new_path = ospath.join(
-            ospath.dirname(path), ospath.basename(path).replace(" ", ".")
-        )
+        new_path = ospath.join(ospath.dirname(path), ospath.basename(path).replace(" ", "."))
         await aiorename(path, new_path)
         self.dluploader.last_uploaded = 0
         upload_file = await self.dluploader.upload_aiohttp(

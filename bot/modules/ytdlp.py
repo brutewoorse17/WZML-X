@@ -1,47 +1,46 @@
 #!/usr/bin/env python3
-from pyrogram.handlers import MessageHandler, CallbackQueryHandler
-from pyrogram.filters import command, regex, user
-from asyncio import sleep, wait_for, Event, wrap_future
-from aiohttp import ClientSession
-from aiofiles.os import path as aiopath
-from yt_dlp import YoutubeDL
+from asyncio import Event, sleep, wait_for, wrap_future
 from functools import partial
 from time import time
 
-from bot import DOWNLOAD_DIR, bot, categories_dict, config_dict, user_data, LOGGER
-from bot.helper.ext_utils.task_manager import task_utils
-from bot.helper.telegram_helper.message_utils import (
-    sendMessage,
-    editMessage,
-    deleteMessage,
-    auto_delete_message,
-    delete_links,
-    open_category_btns,
-    open_dump_btns,
-)
-from bot.helper.telegram_helper.button_build import ButtonMaker
+from aiofiles.os import path as aiopath
+from aiohttp import ClientSession
+from pyrogram.filters import command, regex, user
+from pyrogram.handlers import CallbackQueryHandler, MessageHandler
+from yt_dlp import YoutubeDL
+
+from bot import DOWNLOAD_DIR, LOGGER, bot, categories_dict, config_dict, user_data
 from bot.helper.ext_utils.bot_utils import (
-    get_readable_file_size,
-    fetch_user_tds,
-    fetch_user_dumps,
-    is_url,
-    is_gdrive_link,
-    new_task,
-    sync_to_async,
-    new_task,
-    is_rclone_path,
-    new_thread,
-    get_readable_time,
     arg_parser,
+    fetch_user_dumps,
+    fetch_user_tds,
+    get_readable_file_size,
+    get_readable_time,
+    is_gdrive_link,
+    is_rclone_path,
+    is_url,
+    new_task,
+    new_thread,
+    sync_to_async,
 )
+from bot.helper.ext_utils.bulk_links import extract_bulk_links
+from bot.helper.ext_utils.help_messages import YT_HELP_MESSAGE
+from bot.helper.ext_utils.task_manager import task_utils
+from bot.helper.listeners.tasks_listener import MirrorLeechListener
 from bot.helper.mirror_utils.download_utils.yt_dlp_download import YoutubeDLHelper
 from bot.helper.mirror_utils.rclone_utils.list import RcloneList
-from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
+from bot.helper.telegram_helper.bot_commands import BotCommands
+from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.filters import CustomFilters
-from bot.helper.listeners.tasks_listener import MirrorLeechListener
-from bot.helper.ext_utils.help_messages import YT_HELP_MESSAGE
-from bot.helper.ext_utils.bulk_links import extract_bulk_links
+from bot.helper.telegram_helper.message_utils import (
+    delete_links,
+    deleteMessage,
+    editMessage,
+    open_category_btns,
+    open_dump_btns,
+    sendMessage,
+)
 
 
 @new_task
@@ -147,10 +146,7 @@ class YtSelection:
                         else:
                             size = 0
 
-                        if (
-                            item.get("video_ext") == "none"
-                            and item.get("acodec") != "none"
-                        ):
+                        if item.get("video_ext") == "none" and item.get("acodec") != "none":
                             if item.get("audio_ext") == "m4a":
                                 self.__is_m4a = True
                             b_name = f"{item['acodec']}-{item['ext']}"
@@ -160,9 +156,7 @@ class YtSelection:
                             ext = item["ext"]
                             fps = item["fps"] if item.get("fps") else ""
                             b_name = f"{height}p{fps}-{ext}"
-                            ba_ext = (
-                                "[ext=m4a]" if self.__is_m4a and ext == "mp4" else ""
-                            )
+                            ba_ext = "[ext=m4a]" if self.__is_m4a and ext == "mp4" else ""
                             v_format = f"{format_id}+ba{ba_ext}/b[height=?{height}]"
                         else:
                             continue
@@ -363,9 +357,7 @@ async def _ytdl(client, message, isLeech=False, sameDir=None, bulk=[]):
         b_msg = input_list[:1]
         b_msg.append(f"{bulk[0]} -i {len(bulk)}")
         nextmsg = await sendMessage(message, " ".join(b_msg))
-        nextmsg = await client.get_messages(
-            chat_id=message.chat.id, message_ids=nextmsg.id
-        )
+        nextmsg = await client.get_messages(chat_id=message.chat.id, message_ids=nextmsg.id)
         nextmsg.from_user = message.from_user
         _ytdl(client, nextmsg, isLeech, sameDir, bulk)
         return
@@ -390,9 +382,7 @@ async def _ytdl(client, message, isLeech=False, sameDir=None, bulk=[]):
                 chat_id=message.chat.id, message_ids=message.reply_to_message_id + 1
             )
             nextmsg = await sendMessage(nextmsg, " ".join(msg))
-        nextmsg = await client.get_messages(
-            chat_id=message.chat.id, message_ids=nextmsg.id
-        )
+        nextmsg = await client.get_messages(chat_id=message.chat.id, message_ids=nextmsg.id)
         if folder_name:
             sameDir["tasks"].add(nextmsg.id)
         nextmsg.from_user = message.from_user
@@ -427,9 +417,7 @@ async def _ytdl(client, message, isLeech=False, sameDir=None, bulk=[]):
 
     if not is_url(link):
         btn = ButtonMaker()
-        btn.ibutton(
-            "Cʟɪᴄᴋ Hᴇʀᴇ Tᴏ Rᴇᴀᴅ Mᴏʀᴇ ...", f"wzmlx {message.from_user.id} help YT"
-        )
+        btn.ibutton("Cʟɪᴄᴋ Hᴇʀᴇ Tᴏ Rᴇᴀᴅ Mᴏʀᴇ ...", f"wzmlx {message.from_user.id} help YT")
         await sendMessage(message, YT_HELP_MESSAGE[0], btn.build_menu(1))
         await delete_links(message)
         return
@@ -479,9 +467,7 @@ async def _ytdl(client, message, isLeech=False, sameDir=None, bulk=[]):
                 if is_cancelled:
                     await delete_links(message)
                     return
-            if drive_id and not await sync_to_async(
-                GoogleDriveHelper().getFolderData, drive_id
-            ):
+            if drive_id and not await sync_to_async(GoogleDriveHelper().getFolderData, drive_id):
                 return await sendMessage(message, "Google Drive ID validation failed!!")
         if up == "gd" and not config_dict["GDRIVE_ID"] and not drive_id:
             await sendMessage(message, "GDRIVE_ID not Provided!")

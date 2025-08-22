@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 from bot.helper.ext_utils.bot_utils import (
     EngineStatus,
-    get_readable_file_size,
     MirrorStatus,
+    get_readable_file_size,
     get_readable_time,
 )
 
 
 class MegaDownloadStatus:
-
     def __init__(self, name, size, gid, obj, message, upload_details):
         self.__obj = obj
         self.__name = name

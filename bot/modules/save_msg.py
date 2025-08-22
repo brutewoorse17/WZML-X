@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-from pyrogram.types import InlineKeyboardMarkup
-from pyrogram.handlers import CallbackQueryHandler
-from pyrogram.filters import regex
 from asyncio import sleep
+
+from pyrogram.filters import regex
+from pyrogram.handlers import CallbackQueryHandler
+from pyrogram.types import InlineKeyboardMarkup
 
 from bot import bot, bot_name, user_data
 

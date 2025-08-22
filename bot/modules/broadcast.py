@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
+from asyncio import sleep
 from time import time
 from uuid import uuid4
-from asyncio import sleep
-from pyrogram.handlers import MessageHandler
-from pyrogram.filters import command
-from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated
 
-from bot import bot, LOGGER, DATABASE_URL
+from pyrogram.errors import FloodWait, InputUserDeactivated, UserIsBlocked
+from pyrogram.filters import command
+from pyrogram.handlers import MessageHandler
+
+from bot import DATABASE_URL, bot
+from bot.helper.ext_utils.bot_utils import get_readable_time, new_task
 from bot.helper.ext_utils.db_handler import DbManger
-from bot.helper.telegram_helper.message_utils import sendMessage, editMessage
-from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.telegram_helper.button_build import ButtonMaker
-from bot.helper.ext_utils.bot_utils import new_task, get_readable_time
+from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import editMessage, sendMessage
 
 bc_cache = {}
 
@@ -25,9 +25,7 @@ async def broadcast(_, message):
     rply = message.reply_to_message
     if len(message.command) > 1:
         if not message.command[1].startswith("-"):
-            bc_id = (
-                message.command[1] if bc_cache.get(message.command[1], False) else ""
-            )
+            bc_id = message.command[1] if bc_cache.get(message.command[1], False) else ""
             if not bc_id:
                 return await sendMessage(
                     message,
@@ -170,7 +168,5 @@ async def broadcast(_, message):
 
 
 bot.add_handler(
-    MessageHandler(
-        broadcast, filters=command(BotCommands.BroadcastCommand) & CustomFilters.sudo
-    )
+    MessageHandler(broadcast, filters=command(BotCommands.BroadcastCommand) & CustomFilters.sudo)
 )

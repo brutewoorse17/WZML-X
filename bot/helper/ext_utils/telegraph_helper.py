@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-from string import ascii_letters
-from random import SystemRandom
 from asyncio import sleep
+from random import SystemRandom
+from string import ascii_letters
+
 from telegraph.aio import Telegraph
 from telegraph.exceptions import RetryAfterError
 
@@ -62,9 +63,7 @@ class TelegraphHelper:
         num_of_path = len(path)
         for content in telegraph_content:
             if nxt_page == 1:
-                content += (
-                    f'<b><a href="https://telegra.ph/{path[nxt_page]}">Next</a></b>'
-                )
+                content += f'<b><a href="https://telegra.ph/{path[nxt_page]}">Next</a></b>'
                 nxt_page += 1
             else:
                 if prev_page <= num_of_path:

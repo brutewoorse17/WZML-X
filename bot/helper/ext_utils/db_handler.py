@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-from aiofiles.os import path as aiopath, makedirs
 from aiofiles import open as aiopen
+from aiofiles.os import makedirs, path as aiopath
+from dotenv import dotenv_values
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import PyMongoError
-from dotenv import dotenv_values
 
 from bot import (
     DATABASE_URL,
-    user_data,
-    rss_dict,
     LOGGER,
-    bot_id,
-    config_dict,
     aria2_options,
-    qbit_options,
+    bot_id,
     bot_loop,
+    config_dict,
+    qbit_options,
+    rss_dict,
+    user_data,
 )
 
 
@@ -28,9 +28,7 @@ class DbManger:
     def __connect(self):
         try:
             self.__conn = AsyncIOMotorClient(DATABASE_URL)
-            self.__db = (
-                self.__conn.wzmlx
-            )  # New Section for not conflicting with mltb section !!
+            self.__db = self.__conn.wzmlx  # New Section for not conflicting with mltb section !!
         except PyMongoError as e:
             LOGGER.error(f"Error in DB connection: {e}")
             self.__err = True
@@ -98,9 +96,7 @@ class DbManger:
     async def update_config(self, dict_):
         if self.__err:
             return
-        await self.__db.settings.config.update_one(
-            {"_id": bot_id}, {"$set": dict_}, upsert=True
-        )
+        await self.__db.settings.config.update_one({"_id": bot_id}, {"$set": dict_}, upsert=True)
         self.__conn.close
 
     async def update_aria2(self, key, value):
@@ -191,9 +187,7 @@ class DbManger:
     async def rss_update(self, user_id):
         if self.__err:
             return
-        await self.__db.rss[bot_id].replace_one(
-            {"_id": user_id}, rss_dict[user_id], upsert=True
-        )
+        await self.__db.rss[bot_id].replace_one({"_id": user_id}, rss_dict[user_id], upsert=True)
         self.__conn.close
 
     async def rss_delete(self, user_id):
@@ -226,17 +220,11 @@ class DbManger:
             async for row in rows:
                 if row["cid"] in list(notifier_dict.keys()):
                     if row["tag"] in list(notifier_dict[row["cid"]]):
-                        notifier_dict[row["cid"]][row["tag"]].append(
-                            {row["_id"]: row["source"]}
-                        )
+                        notifier_dict[row["cid"]][row["tag"]].append({row["_id"]: row["source"]})
                     else:
-                        notifier_dict[row["cid"]][row["tag"]] = [
-                            {row["_id"]: row["source"]}
-                        ]
+                        notifier_dict[row["cid"]][row["tag"]] = [{row["_id"]: row["source"]}]
                 else:
-                    notifier_dict[row["cid"]] = {
-                        row["tag"]: [{row["_id"]: row["source"]}]
-                    }
+                    notifier_dict[row["cid"]] = {row["tag"]: [{row["_id"]: row["source"]}]}
         await self.__db.tasks[bot_id].drop()
         self.__conn.close
         return notifier_dict  # return a dict ==> {cid: {tag: [{_id: source}, {_id, source}, ...]}}

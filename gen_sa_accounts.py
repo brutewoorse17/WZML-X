@@ -1,12 +1,12 @@
-import errno
-import os
-import pickle
-import sys
 from argparse import ArgumentParser
 from base64 import b64decode
+import errno
 from glob import glob
 from json import loads
+import os
+import pickle
 from random import choice
+import sys
 from time import sleep
 
 from google.auth.transport.requests import Request
@@ -93,7 +93,7 @@ def _create_projects(cloud, count):
     for i in project_create_ops:
         while True:
             resp = cloud.operations().get(name=i).execute()
-            if "done" in resp and resp["done"]:
+            if resp.get("done"):
                 break
             sleep(3)
     return new_projs
@@ -104,20 +104,13 @@ def _enable_services(service, projects, ste):
     batch = service.new_batch_http_request(callback=_def_batch_resp)
     for i in projects:
         for j in ste:
-            batch.add(
-                service.services().enable(name="projects/%s/services/%s" % (i, j))
-            )
+            batch.add(service.services().enable(name="projects/%s/services/%s" % (i, j)))
     batch.execute()
 
 
 # List SAs in project
 def _list_sas(iam, project):
-    resp = (
-        iam.projects()
-        .serviceAccounts()
-        .list(name="projects/" + project, pageSize=100)
-        .execute()
-    )
+    resp = iam.projects().serviceAccounts().list(name="projects/" + project, pageSize=100).execute()
     if "accounts" in resp:
         return resp["accounts"]
     return []
@@ -196,7 +189,7 @@ def serviceaccountfactory(
     download_keys=None,
 ):
     selected_projects = []
-    proj_id = loads(open(credentials, "r").read())["installed"]["project_id"]
+    proj_id = loads(open(credentials).read())["installed"]["project_id"]
     creds = None
     if os.path.exists(token):
         with open(token, "rb") as t:
@@ -221,14 +214,10 @@ def serviceaccountfactory(
         try:
             projs = _get_projects(cloud)
         except HttpError as e:
-            if (
-                loads(e.content.decode("utf-8"))["error"]["status"]
-                == "PERMISSION_DENIED"
-            ):
+            if loads(e.content.decode("utf-8"))["error"]["status"] == "PERMISSION_DENIED":
                 try:
                     serviceusage.services().enable(
-                        name="projects/%s/services/cloudresourcemanager.googleapis.com"
-                        % proj_id
+                        name="projects/%s/services/cloudresourcemanager.googleapis.com" % proj_id
                     ).execute()
                 except HttpError as e:
                     print(e._get_reason())
@@ -238,7 +227,7 @@ def serviceaccountfactory(
     if list_sas:
         return _list_sas(iam, list_sas)
     if create_projects:
-        print("creat projects: {}".format(create_projects))
+        print(f"creat projects: {create_projects}")
         if create_projects > 0:
             current_count = len(_get_projects(cloud))
             if current_count + create_projects <= max_projects:
@@ -323,9 +312,7 @@ if __name__ == "__main__":
         action="store_true",
         help="List projects viewable by the user.",
     )
-    parse.add_argument(
-        "--list-sas", default=False, help="List service accounts in a project."
-    )
+    parse.add_argument("--list-sas", default=False, help="List service accounts in a project.")
     parse.add_argument(
         "--create-projects", type=int, default=None, help="Creates up to N projects."
     )
@@ -346,12 +333,8 @@ if __name__ == "__main__":
         default=["iam", "drive"],
         help="Specify a different set of services to enable. Overrides the default.",
     )
-    parse.add_argument(
-        "--create-sas", default=None, help="Create service accounts in a project."
-    )
-    parse.add_argument(
-        "--delete-sas", default=None, help="Delete service accounts in a project."
-    )
+    parse.add_argument("--create-sas", default=None, help="Create service accounts in a project.")
+    parse.add_argument("--delete-sas", default=None, help="Delete service accounts in a project.")
     parse.add_argument(
         "--download-keys",
         default=None,
@@ -391,10 +374,7 @@ if __name__ == "__main__":
                 if inp in inp_options:
                     break
             args.credentials = inp if inp in options else options[int(inp) - 1]
-            print(
-                "Use --credentials %s next time to use this credentials file."
-                % args.credentials
-            )
+            print("Use --credentials %s next time to use this credentials file." % args.credentials)
     if args.quick_setup:
         opt = "~" if args.new_only else "*"
         args.services = ["iam", "drive"]

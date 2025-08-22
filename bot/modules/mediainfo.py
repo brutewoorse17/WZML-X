@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-from aiohttp import ClientSession
+from os import getcwd, path as ospath
 from re import search as re_search
 from shlex import split as ssplit
+
 from aiofiles import open as aiopen
-from aiofiles.os import remove as aioremove, path as aiopath, mkdir
-from os import path as ospath, getcwd
-
-from pyrogram.handlers import MessageHandler
+from aiofiles.os import mkdir, path as aiopath, remove as aioremove
+from aiohttp import ClientSession
 from pyrogram.filters import command
+from pyrogram.handlers import MessageHandler
 
-from bot import LOGGER, bot, config_dict
-from bot.helper.telegram_helper.filters import CustomFilters
-from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.telegram_helper.message_utils import editMessage, sendMessage
+from bot import LOGGER, bot
 from bot.helper.ext_utils.bot_utils import cmd_exec
 from bot.helper.ext_utils.telegraph_helper import telegraph
+from bot.helper.telegram_helper.bot_commands import BotCommands
+from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import editMessage, sendMessage
 
 
 async def gen_mediainfo(message, link=None, media=None, mmsg=None):
@@ -49,7 +49,7 @@ async def gen_mediainfo(message, link=None, media=None, mmsg=None):
             tc += parseinfo(stdout)
     except Exception as e:
         LOGGER.error(e)
-        await editMessage(temp_send, f"MediaInfo Stopped due to {str(e)}")
+        await editMessage(temp_send, f"MediaInfo Stopped due to {e!s}")
     finally:
         await aioremove(des_path)
     link_id = (await telegraph.create_page(title="MediaInfo X", content=tc))["path"]

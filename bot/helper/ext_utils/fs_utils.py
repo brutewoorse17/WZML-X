@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-from os import walk, path as ospath
-from aiofiles.os import remove as aioremove, path as aiopath, listdir, rmdir, makedirs
-from aioshutil import rmtree as aiormtree, move
 from asyncio import create_subprocess_exec
 from asyncio.subprocess import PIPE
-from shutil import rmtree, disk_usage
-from magic import Magic
-from re import split as re_split, I, search as re_search
+from os import path as ospath, walk
+from re import I, search as re_search, split as re_split
+from shutil import disk_usage, rmtree
 from subprocess import run as srun
 from sys import exit as sexit
-from bot import bot_cache
+
+from aiofiles.os import listdir, makedirs, path as aiopath, remove as aioremove, rmdir
+from aioshutil import move, rmtree as aiormtree
+from magic import Magic
+
+from bot import DOWNLOAD_DIR, GLOBAL_EXTENSION_FILTER, LOGGER, aria2, bot_cache, get_client
+from bot.helper.ext_utils.bot_utils import cmd_exec, sync_to_async
 
 from .exceptions import NotSupportedExtractionArchive
-from bot import aria2, LOGGER, DOWNLOAD_DIR, get_client, GLOBAL_EXTENSION_FILTER
-from bot.helper.ext_utils.bot_utils import sync_to_async, cmd_exec
 
 ARCH_EXT = [
     ".tar.bz2",
@@ -55,7 +56,9 @@ ARCH_EXT = [
     ".xar",
 ]
 
-FIRST_SPLIT_REGEX = r"(\.|_)part0*1\.rar$|(\.|_)7z\.0*1$|(\.|_)zip\.0*1$|^(?!.*(\.|_)part\d+\.rar$).*\.rar$"
+FIRST_SPLIT_REGEX = (
+    r"(\.|_)part0*1\.rar$|(\.|_)7z\.0*1$|(\.|_)zip\.0*1$|^(?!.*(\.|_)part\d+\.rar$).*\.rar$"
+)
 
 SPLIT_REGEX = r"\.r\d+$|\.7z\.\d+$|\.z\d+$|\.zip\.\d+$"
 
@@ -129,11 +132,7 @@ async def clean_unwanted(path):
     LOGGER.info(f"Cleaning unwanted files/folders: {path}")
     for dirpath, _, files in await sync_to_async(walk, path, topdown=False):
         for filee in files:
-            if (
-                filee.endswith(".!qB")
-                or filee.endswith(".parts")
-                and filee.startswith(".")
-            ):
+            if filee.endswith(".!qB") or filee.endswith(".parts") and filee.startswith("."):
                 await aioremove(ospath.join(dirpath, filee))
         if dirpath.endswith((".unwanted", "splited_files_mltb", "copied_mltb")):
             await aiormtree(dirpath)
@@ -183,12 +182,7 @@ def get_mime_type(file_path):
 def check_storage_threshold(size, threshold, arch=False, alloc=False):
     free = disk_usage(DOWNLOAD_DIR).free
     if not alloc:
-        if (
-            not arch
-            and free - size < threshold
-            or arch
-            and free - (size * 2) < threshold
-        ):
+        if not arch and free - size < threshold or arch and free - (size * 2) < threshold:
             return False
     elif not arch:
         if free < threshold:
@@ -204,8 +198,7 @@ async def join_files(path):
     for file_ in files:
         if (
             re_search(r"\.0+2$", file_)
-            and await sync_to_async(get_mime_type, f"{path}/{file_}")
-            == "application/octet-stream"
+            and await sync_to_async(get_mime_type, f"{path}/{file_}") == "application/octet-stream"
         ):
             final_name = file_.rsplit(".", 1)[0]
             cmd = f"cat {path}/{final_name}.* > {path}/{final_name}"
@@ -224,9 +217,7 @@ async def join_files(path):
                     await aioremove(f"{path}/{file_}")
 
 
-async def edit_metadata(
-    listener, base_dir: str, media_file: str, outfile: str, metadata: str = ""
-):
+async def edit_metadata(listener, base_dir: str, media_file: str, outfile: str, metadata: str = ""):
     cmd = [
         bot_cache["pkgs"][2],
         "-hide_banner",
@@ -244,7 +235,7 @@ async def edit_metadata(
         "-metadata",
         "Copyright=",
         "-metadata",
-        f"AUTHOR=Zyradaex",
+        "AUTHOR=Zyradaex",
         "-metadata",
         "Encoded by=",
         "-metadata",

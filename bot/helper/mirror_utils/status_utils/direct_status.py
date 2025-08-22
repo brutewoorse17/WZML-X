@@ -39,9 +39,7 @@ class DirectStatus:
 
     def eta(self):
         try:
-            seconds = (
-                self.__obj.total_size - self.__obj.processed_bytes
-            ) / self.__obj.speed
+            seconds = (self.__obj.total_size - self.__obj.processed_bytes) / self.__obj.speed
             return get_readable_time(seconds)
         except Exception:
             return "-"

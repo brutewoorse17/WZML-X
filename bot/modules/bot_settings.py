@@ -1,59 +1,59 @@
 #!/usr/bin/env python3
-from random import choice
-from pyrogram.handlers import MessageHandler, CallbackQueryHandler
-from pyrogram.filters import command, regex, create
-from pyrogram.enums import ChatType
-from functools import partial
+from asyncio import create_subprocess_exec, create_subprocess_shell, gather, sleep
 from collections import OrderedDict
-from asyncio import create_subprocess_exec, create_subprocess_shell, sleep, gather
-from aiofiles.os import remove, rename, path as aiopath
-from aiofiles import open as aiopen
-from os import environ, getcwd
-from dotenv import load_dotenv
-from time import time
+from functools import partial
 from io import BytesIO
+from os import environ, getcwd
+from time import time
+
+from aiofiles import open as aiopen
+from aiofiles.os import path as aiopath, remove, rename
 from aioshutil import rmtree as aiormtree
+from dotenv import load_dotenv
+from pyrogram.enums import ChatType
+from pyrogram.filters import command, create, regex
+from pyrogram.handlers import CallbackQueryHandler, MessageHandler
 
 from bot import (
-    config_dict,
-    user_data,
     DATABASE_URL,
-    MAX_SPLIT_SIZE,
-    list_drives_dict,
-    categories_dict,
-    aria2,
     GLOBAL_EXTENSION_FILTER,
-    status_reply_dict_lock,
+    IS_PREMIUM_USER,
+    LOGGER,
+    MAX_SPLIT_SIZE,
     Interval,
+    aria2,
     aria2_options,
     aria2c_global,
-    IS_PREMIUM_USER,
-    download_dict,
-    qbit_options,
-    get_client,
-    LOGGER,
     bot,
+    categories_dict,
+    config_dict,
+    download_dict,
     extra_buttons,
+    get_client,
+    list_drives_dict,
+    qbit_options,
     shorteners_list,
+    status_reply_dict_lock,
+    user_data,
 )
-from bot.helper.telegram_helper.message_utils import (
-    sendMessage,
-    sendFile,
-    editMessage,
-    deleteMessage,
-    update_all_messages,
-)
-from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.ext_utils.bot_utils import new_thread, setInterval, sync_to_async
+from bot.helper.ext_utils.db_handler import DbManger
+from bot.helper.ext_utils.help_messages import default_desp
+from bot.helper.ext_utils.task_manager import start_from_queued
+from bot.helper.mirror_utils.rclone_utils.serve import rclone_serve_booter
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
-from bot.helper.ext_utils.bot_utils import setInterval, sync_to_async, new_thread
-from bot.helper.ext_utils.db_handler import DbManger
-from bot.helper.ext_utils.task_manager import start_from_queued
-from bot.helper.ext_utils.help_messages import default_desp
-from bot.helper.mirror_utils.rclone_utils.serve import rclone_serve_booter
-from bot.modules.torrent_search import initiate_search_tools
-from bot.modules.rss import addJob
+from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import (
+    deleteMessage,
+    editMessage,
+    sendFile,
+    sendMessage,
+    update_all_messages,
+)
 from bot.helper.themes import AVL_THEMES
+from bot.modules.rss import addJob
+from bot.modules.torrent_search import initiate_search_tools
 
 START = 0
 STATE = "view"
@@ -100,7 +100,6 @@ bool_vars = [
 
 
 async def load_config():
-
     BOT_TOKEN = environ.get("BOT_TOKEN", "")
     if len(BOT_TOKEN) == 0:
         BOT_TOKEN = config_dict["BOT_TOKEN"]
@@ -155,9 +154,7 @@ async def load_config():
             chat_id = int(chat_id)
             user_data.setdefault(chat_id, {"is_auth": True})
             if topic_ids:
-                user_data[chat_id].setdefault("topic_ids", []).extend(
-                    map(int, topic_ids)
-                )
+                user_data[chat_id].setdefault("topic_ids", []).extend(map(int, topic_ids))
 
     SUDO_USERS = environ.get("SUDO_USERS", "")
     if len(SUDO_USERS) != 0:
@@ -266,9 +263,7 @@ async def load_config():
             if Interval:
                 Interval[0].cancel()
                 Interval.clear()
-                Interval.append(
-                    setInterval(STATUS_UPDATE_INTERVAL, update_all_messages)
-                )
+                Interval.append(setInterval(STATUS_UPDATE_INTERVAL, update_all_messages))
 
     AUTO_DELETE_MESSAGE_DURATION = environ.get("AUTO_DELETE_MESSAGE_DURATION", "")
     if len(AUTO_DELETE_MESSAGE_DURATION) == 0:
@@ -479,9 +474,7 @@ async def load_config():
     DAILY_TASK_LIMIT = "" if len(DAILY_TASK_LIMIT) == 0 else int(DAILY_TASK_LIMIT)
 
     DAILY_MIRROR_LIMIT = environ.get("DAILY_MIRROR_LIMIT", "")
-    DAILY_MIRROR_LIMIT = (
-        "" if len(DAILY_MIRROR_LIMIT) == 0 else float(DAILY_MIRROR_LIMIT)
-    )
+    DAILY_MIRROR_LIMIT = "" if len(DAILY_MIRROR_LIMIT) == 0 else float(DAILY_MIRROR_LIMIT)
 
     DAILY_LEECH_LIMIT = environ.get("DAILY_LEECH_LIMIT", "")
     DAILY_LEECH_LIMIT = "" if len(DAILY_LEECH_LIMIT) == 0 else float(DAILY_LEECH_LIMIT)
@@ -507,11 +500,7 @@ async def load_config():
 
     IMAGES = environ.get("IMAGES", "")
     IMAGES = (
-        IMAGES.replace("'", "")
-        .replace('"', "")
-        .replace("[", "")
-        .replace("]", "")
-        .replace(",", "")
+        IMAGES.replace("'", "").replace('"', "").replace("[", "").replace("]", "").replace(",", "")
     ).split()
 
     AUTHOR_NAME = environ.get("AUTHOR_NAME", "")
@@ -797,16 +786,12 @@ async def get_buttons(key=None, edit_type=None, edit_mode=None, mess=None):
         buttons.ibutton("Close", "botset close")
         msg = "<b><i>Bot Settings:</i></b>"
     elif key == "var":
-        for k in list(OrderedDict(sorted(config_dict.items())).keys())[
-            START : 10 + START
-        ]:
+        for k in list(OrderedDict(sorted(config_dict.items())).keys())[START : 10 + START]:
             buttons.ibutton(k, f"botset editvar {k}")
         buttons.ibutton("Back", "botset back")
         buttons.ibutton("Close", "botset close")
         for x in range(0, len(config_dict) - 1, 10):
-            buttons.ibutton(
-                f"{int(x/10)+1}", f"botset start var {x}", position="footer"
-            )
+            buttons.ibutton(f"{int(x/10)+1}", f"botset start var {x}", position="footer")
         msg = f"<b>Config Variables</b> | <b>Page: {int(START/10)+1}</b>"
     elif key == "private":
         buttons.ibutton("Back", "botset back")
@@ -830,9 +815,7 @@ async def get_buttons(key=None, edit_type=None, edit_mode=None, mess=None):
         buttons.ibutton("Back", "botset back")
         buttons.ibutton("Close", "botset close")
         for x in range(0, len(aria2_options) - 1, 10):
-            buttons.ibutton(
-                f"{int(x/10)+1}", f"botset start aria {x}", position="footer"
-            )
+            buttons.ibutton(f"{int(x/10)+1}", f"botset start aria {x}", position="footer")
         msg = f"Aria2c Options | Page: {int(START/10)+1} | State: {STATE}"
     elif key == "qbit":
         for k in list(qbit_options.keys())[START : 10 + START]:
@@ -844,21 +827,15 @@ async def get_buttons(key=None, edit_type=None, edit_mode=None, mess=None):
         buttons.ibutton("Back", "botset back")
         buttons.ibutton("Close", "botset close")
         for x in range(0, len(qbit_options) - 1, 10):
-            buttons.ibutton(
-                f"{int(x/10)+1}", f"botset start qbit {x}", position="footer"
-            )
+            buttons.ibutton(f"{int(x/10)+1}", f"botset start qbit {x}", position="footer")
         msg = f"Qbittorrent Options | Page: {int(START/10)+1} | State: {STATE}"
     elif edit_type == "editvar":
         msg = f"<b>Variable:</b> <code>{key}</code>\n\n"
         msg += f'<b>Description:</b> {default_desp.get(key, "No Description Provided")}\n\n'
         if mess.chat.type == ChatType.PRIVATE:
-            msg += (
-                f'<b>Value:</b> <spoiler> {config_dict.get(key, "None")} </spoiler>\n\n'
-            )
+            msg += f'<b>Value:</b> <spoiler> {config_dict.get(key, "None")} </spoiler>\n\n'
         else:
-            buttons.ibutton(
-                "View Var Value", f"botset showvar {key}", position="header"
-            )
+            buttons.ibutton("View Var Value", f"botset showvar {key}", position="header")
         buttons.ibutton("Back", "botset back var", position="footer")
         if key not in bool_vars:
             if not edit_mode:
@@ -950,7 +927,7 @@ async def edit_variable(_, message, pre_message, key):
     elif key == "LEECH_SPLIT_SIZE":
         value = min(int(value), MAX_SPLIT_SIZE)
     elif key == "BOT_THEME":
-        if not value.strip() in AVL_THEMES.keys():
+        if value.strip() not in AVL_THEMES.keys():
             value = "minimal"
     elif key == "CAP_FONT":
         value = value.strip().lower()
@@ -1013,7 +990,7 @@ async def edit_aria(_, message, pre_message, key):
     handler_dict[message.chat.id] = False
     value = message.text
     if key == "newkey":
-        key, value = [x.strip() for x in value.split(":", 1)]
+        key, value = (x.strip() for x in value.split(":", 1))
     elif value.lower() == "true":
         value = "true"
     elif value.lower() == "false":
@@ -1025,9 +1002,7 @@ async def edit_aria(_, message, pre_message, key):
         for download in downloads:
             if not download.is_complete:
                 try:
-                    await sync_to_async(
-                        aria2.client.change_option, download.gid, {key: value}
-                    )
+                    await sync_to_async(aria2.client.change_option, download.gid, {key: value})
                 except Exception as e:
                     LOGGER.error(e)
     aria2_options[key] = value
@@ -1114,9 +1089,7 @@ async def update_private_file(_, message, pre_message):
                     "7z", "x", "-o.", "-aoa", "accounts.zip", "accounts/*.json"
                 )
             ).wait()
-            await (
-                await create_subprocess_exec("chmod", "-R", "777", "accounts")
-            ).wait()
+            await (await create_subprocess_exec("chmod", "-R", "777", "accounts")).wait()
         elif file_name == "list_drives.txt":
             list_drives_dict.clear()
             if GDRIVE_ID := config_dict["GDRIVE_ID"]:
@@ -1208,9 +1181,7 @@ async def event_handler(client, query, pfunc, rfunc, document=False):
             and (event.text or event.document and document)
         )
 
-    handler = client.add_handler(
-        MessageHandler(pfunc, filters=create(event_filter)), group=-1
-    )
+    handler = client.add_handler(MessageHandler(pfunc, filters=create(event_filter)), group=-1)
     while handler_dict[chat_id]:
         await sleep(0.5)
         if time() - start_time > 60:
@@ -1273,9 +1244,7 @@ async def edit_bot_settings(client, query):
         elif data[2] == "BASE_URL_PORT":
             value = 80
             if config_dict["BASE_URL"]:
-                await (
-                    await create_subprocess_exec("pkill", "-9", "-f", "gunicorn")
-                ).wait()
+                await (await create_subprocess_exec("pkill", "-9", "-f", "gunicorn")).wait()
                 await create_subprocess_shell(
                     "gunicorn web.wserver:app --bind 0.0.0.0:80 --worker-class gevent"
                 )
@@ -1320,9 +1289,7 @@ async def edit_bot_settings(client, query):
         for download in downloads:
             if not download.is_complete:
                 try:
-                    await sync_to_async(
-                        aria2.client.change_option, download.gid, {data[2]: value}
-                    )
+                    await sync_to_async(aria2.client.change_option, download.gid, {data[2]: value})
                 except Exception as e:
                     LOGGER.error(e)
         if DATABASE_URL:
@@ -1336,9 +1303,7 @@ async def edit_bot_settings(client, query):
         for download in downloads:
             if not download.is_complete:
                 try:
-                    await sync_to_async(
-                        aria2.client.change_option, download.gid, {data[2]: ""}
-                    )
+                    await sync_to_async(aria2.client.change_option, download.gid, {data[2]: ""})
                 except Exception as e:
                     LOGGER.error(e)
         if DATABASE_URL:
@@ -1468,12 +1433,8 @@ async def bot_settings(_, message):
 
 
 bot.add_handler(
-    MessageHandler(
-        bot_settings, filters=command(BotCommands.BotSetCommand) & CustomFilters.sudo
-    )
+    MessageHandler(bot_settings, filters=command(BotCommands.BotSetCommand) & CustomFilters.sudo)
 )
 bot.add_handler(
-    CallbackQueryHandler(
-        edit_bot_settings, filters=regex("^botset") & CustomFilters.sudo
-    )
+    CallbackQueryHandler(edit_bot_settings, filters=regex("^botset") & CustomFilters.sudo)
 )

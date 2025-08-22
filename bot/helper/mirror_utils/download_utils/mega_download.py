@@ -1,30 +1,31 @@
 #!/usr/bin/env python3
-from secrets import token_hex
-from aiofiles.os import makedirs
 from asyncio import Event
-from mega import MegaApi, MegaListener, MegaRequest, MegaTransfer, MegaError
+from secrets import token_hex
+
+from aiofiles.os import makedirs
+from mega import MegaApi, MegaError, MegaListener, MegaRequest, MegaTransfer
 
 from bot import (
     LOGGER,
     config_dict,
-    download_dict_lock,
     download_dict,
+    download_dict_lock,
     non_queued_dl,
     queue_dict_lock,
 )
-from bot.helper.telegram_helper.message_utils import sendMessage, sendStatusMessage
 from bot.helper.ext_utils.bot_utils import (
-    get_mega_link_type,
     async_to_sync,
+    get_mega_link_type,
     sync_to_async,
 )
-from bot.helper.mirror_utils.status_utils.mega_download_status import MegaDownloadStatus
-from bot.helper.mirror_utils.status_utils.queue_status import QueueStatus
 from bot.helper.ext_utils.task_manager import (
     is_queued,
     limit_checker,
     stop_duplicate_check,
 )
+from bot.helper.mirror_utils.status_utils.mega_download_status import MegaDownloadStatus
+from bot.helper.mirror_utils.status_utils.queue_status import QueueStatus
+from bot.helper.telegram_helper.message_utils import sendMessage, sendStatusMessage
 
 
 class MegaAppListener(MegaListener):
@@ -79,9 +80,7 @@ class MegaAppListener(MegaListener):
         LOGGER.error(f"Mega Request error in {error}")
         if not self.is_cancelled:
             self.is_cancelled = True
-            async_to_sync(
-                self.listener.onDownloadError, f"RequestTempError: {error.toString()}"
-            )
+            async_to_sync(self.listener.onDownloadError, f"RequestTempError: {error.toString()}")
         self.error = error.toString()
         self.continue_event.set()
 
@@ -118,9 +117,7 @@ class MegaAppListener(MegaListener):
         self.error = errStr
         if not self.is_cancelled:
             self.is_cancelled = True
-            async_to_sync(
-                self.listener.onDownloadError, f"TransferTempError: {errStr} ({filen})"
-            )
+            async_to_sync(self.listener.onDownloadError, f"TransferTempError: {errStr} ({filen})")
             self.continue_event.set()
 
     async def cancel_download(self):
@@ -129,7 +126,6 @@ class MegaAppListener(MegaListener):
 
 
 class AsyncExecutor:
-
     def __init__(self):
         self.continue_event = Event()
 

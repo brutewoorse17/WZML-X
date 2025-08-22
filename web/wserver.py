@@ -1,8 +1,9 @@
-from logging import getLogger, FileHandler, StreamHandler, INFO, basicConfig
+from logging import INFO, FileHandler, StreamHandler, basicConfig, getLogger
 from time import sleep
-from qbittorrentapi import NotFound404Error, Client as qbClient
+
 from aria2p import API as ariaAPI, Client as ariaClient
 from flask import Flask, request
+from qbittorrentapi import Client as qbClient, NotFound404Error
 
 from web.nodes import make_tree
 
@@ -653,7 +654,6 @@ section span{
 
 
 def re_verfiy(paused, resumed, client, hash_id):
-
     paused = paused.strip()
     resumed = resumed.strip()
     if paused:
@@ -679,17 +679,13 @@ def re_verfiy(paused, resumed, client, hash_id):
         sleep(1)
         client = qbClient(host="localhost", port="8090")
         try:
-            client.torrents_file_priority(
-                torrent_hash=hash_id, file_ids=paused, priority=0
-            )
+            client.torrents_file_priority(torrent_hash=hash_id, file_ids=paused, priority=0)
         except NotFound404Error as e:
             raise NotFound404Error from e
         except Exception as e:
             LOGGER.error(f"{e} Errored in reverification paused!")
         try:
-            client.torrents_file_priority(
-                torrent_hash=hash_id, file_ids=resumed, priority=1
-            )
+            client.torrents_file_priority(torrent_hash=hash_id, file_ids=resumed, priority=1)
         except NotFound404Error as e:
             raise NotFound404Error from e
         except Exception as e:
@@ -703,7 +699,6 @@ def re_verfiy(paused, resumed, client, hash_id):
 
 @app.route("/app/files/<string:id_>", methods=["GET"])
 def list_torrent_contents(id_):
-
     if "pin_code" not in request.args.keys():
         return code_page.replace("{form_url}", f"/app/files/{id_}")
 
@@ -731,7 +726,6 @@ def list_torrent_contents(id_):
 
 @app.route("/app/files/<string:id_>", methods=["POST"])
 def set_priority(id_):
-
     data = dict(request.form)
     resume = ""
     if len(id_) > 20:

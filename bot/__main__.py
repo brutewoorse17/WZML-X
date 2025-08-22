@@ -1,91 +1,63 @@
-from time import time, monotonic
-from datetime import datetime
-from sys import executable
-from os import execl as osexecl
-from asyncio import create_subprocess_exec, gather, run as asyrun
-from uuid import uuid4
+from asyncio import create_subprocess_exec, gather
 from base64 import b64decode
-from importlib import import_module, reload
+from datetime import datetime
+from os import execl as osexecl
+from signal import SIGINT, signal
+from sys import executable
+from time import monotonic, time
+from uuid import uuid4
 
-from requests import get as rget
-from pytz import timezone
-from bs4 import BeautifulSoup
-from signal import signal, SIGINT
-from aiofiles.os import path as aiopath, remove as aioremove
 from aiofiles import open as aiopen
+from aiofiles.os import path as aiopath, remove as aioremove
+from bs4 import BeautifulSoup
 from pyrogram import idle
 from pyrogram.enums import ChatMemberStatus, ChatType
-from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram.filters import command, private, regex
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.handlers import CallbackQueryHandler, MessageHandler
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from pytz import timezone
+from requests import get as rget
 
 from bot import (
-    bot,
-    user,
-    bot_name,
-    config_dict,
-    user_data,
-    botStartTime,
+    DATABASE_URL,
+    INCOMPLETE_TASK_NOTIFIER,
     LOGGER,
     Interval,
-    DATABASE_URL,
     QbInterval,
-    INCOMPLETE_TASK_NOTIFIER,
+    bot,
+    bot_name,
+    config_dict,
     scheduler,
+    user,
+    user_data,
 )
 from bot.version import get_version
-from .helper.ext_utils.fs_utils import start_cleanup, clean_all, exit_clean_up
+
 from .helper.ext_utils.bot_utils import (
     get_readable_time,
-    cmd_exec,
-    sync_to_async,
+    get_stats,
     new_task,
     set_commands,
+    sync_to_async,
     update_user_ldata,
-    get_stats,
 )
 from .helper.ext_utils.db_handler import DbManger
+from .helper.ext_utils.fs_utils import clean_all, exit_clean_up, start_cleanup
+from .helper.listeners.aria2_listener import start_aria2_listener
 from .helper.telegram_helper.bot_commands import BotCommands
+from .helper.telegram_helper.button_build import ButtonMaker
+from .helper.telegram_helper.filters import CustomFilters
 from .helper.telegram_helper.message_utils import (
-    sendMessage,
+    delete_all_messages,
+    deleteMessage,
     editMessage,
     editReplyMarkup,
     sendFile,
-    deleteMessage,
-    delete_all_messages,
+    sendMessage,
 )
-from .helper.telegram_helper.filters import CustomFilters
-from .helper.telegram_helper.button_build import ButtonMaker
-from .helper.listeners.aria2_listener import start_aria2_listener
 from .helper.themes import BotTheme
 from .modules import (
-    authorize,
-    clone,
-    gd_count,
-    gd_delete,
-    gd_list,
-    cancel_mirror,
-    mirror_leech,
-    status,
     torrent_search,
-    torrent_select,
-    ytdlp,
-    rss,
-    shell,
-    eval,
-    users_settings,
-    bot_settings,
-    speedtest,
-    save_msg,
-    images,
-    imdb,
-    anilist,
-    mediainfo,
-    mydramalist,
-    gen_pyro_sess,
-    gd_clean,
-    broadcast,
-    category_select,
 )
 
 
@@ -111,10 +83,7 @@ async def start(client, message):
         data = user_data.get(userid, {})
         if "token" not in data or data["token"] != input_token:
             return await sendMessage(message, BotTheme("USED_TOKEN"))
-        elif (
-            config_dict["LOGIN_PASS"] is not None
-            and data["token"] == config_dict["LOGIN_PASS"]
-        ):
+        elif config_dict["LOGIN_PASS"] is not None and data["token"] == config_dict["LOGIN_PASS"]:
             return await sendMessage(message, BotTheme("LOGGED_PASSWORD"))
         buttons.ibutton(BotTheme("ACTIVATE_BUTTON"), f"pass {input_token}", "header")
         reply_markup = buttons.build_menu(2)
@@ -144,9 +113,7 @@ async def token_callback(_, query):
     update_user_ldata(user_id, "time", time())
     await query.answer("Activated Temporary Token!", show_alert=True)
     kb = query.message.reply_markup.inline_keyboard[1:]
-    kb.insert(
-        0, [InlineKeyboardButton(BotTheme("ACTIVATED"), callback_data="pass activated")]
-    )
+    kb.insert(0, [InlineKeyboardButton(BotTheme("ACTIVATED"), callback_data="pass activated")])
     await editReplyMarkup(query.message, InlineKeyboardMarkup(kb))
 
 
@@ -189,16 +156,12 @@ async def ping(_, message):
     start_time = monotonic()
     reply = await sendMessage(message, BotTheme("PING"))
     end_time = monotonic()
-    await editMessage(
-        reply, BotTheme("PING_VALUE", value=int((end_time - start_time) * 1000))
-    )
+    await editMessage(reply, BotTheme("PING_VALUE", value=int((end_time - start_time) * 1000)))
 
 
 async def log(_, message):
     buttons = ButtonMaker()
-    buttons.ibutton(
-        BotTheme("LOG_DISPLAY_BT"), f"wzmlx {message.from_user.id} logdisplay"
-    )
+    buttons.ibutton(BotTheme("LOG_DISPLAY_BT"), f"wzmlx {message.from_user.id} logdisplay")
     buttons.ibutton(BotTheme("WEB_PASTE_BT"), f"wzmlx {message.from_user.id} webpaste")
     await sendFile(message, "log.txt", buttons=buttons.build_menu(1))
 
@@ -215,13 +178,9 @@ async def search_images():
                 url = f"{base_url}?wallpaper={query}&width=1280&height=720&page={page}"
                 r = rget(url)
                 soup = BeautifulSoup(r.text, "html.parser")
-                images = soup.select(
-                    'img[data-src^="https://c4.wallpaperflare.com/wallpaper"]'
-                )
+                images = soup.select('img[data-src^="https://c4.wallpaperflare.com/wallpaper"]')
                 if len(images) == 0:
-                    LOGGER.info(
-                        "Maybe Site is Blocked on your Server, Add Images Manually !!"
-                    )
+                    LOGGER.info("Maybe Site is Blocked on your Server, Add Images Manually !!")
                 for img in images:
                     img_url = img["data-src"]
                     if img_url not in config_dict["IMAGES"]:
@@ -297,7 +256,9 @@ async def restart_notification():
                     msg += f"\n➲ <b>User:</b> {tag}\n┖ <b>Tasks:</b>"
                     for index, link in enumerate(links, start=1):
                         msg_link, source = next(iter(link.items()))
-                        msg += f" {index}. <a href='{source}'>S</a> ->  <a href='{msg_link}'>L</a> |"
+                        msg += (
+                            f" {index}. <a href='{source}'>S</a> ->  <a href='{msg_link}'>L</a> |"
+                        )
                         if len(msg.encode()) > 4000:
                             await send_incompelete_task_message(cid, msg)
                             msg = ""
@@ -330,30 +291,24 @@ async def log_check():
                 try:
                     chat = await bot.get_chat(int(chat_id))
                 except Exception:
-                    LOGGER.error(
-                        f"Not Connected Chat ID : {chat_id}, Make sure the Bot is Added!"
-                    )
+                    LOGGER.error(f"Not Connected Chat ID : {chat_id}, Make sure the Bot is Added!")
                     continue
                 if chat.type == ChatType.CHANNEL:
-                    if not (
-                        await chat.get_member(bot.me.id)
-                    ).privileges.can_post_messages:
+                    if not (await chat.get_member(bot.me.id)).privileges.can_post_messages:
                         LOGGER.error(
                             f"Not Connected Chat ID : {chat_id}, Make the Bot is Admin in Channel to Connect!"
                         )
                         continue
                     if (
                         user
-                        and not (
-                            await chat.get_member(user.me.id)
-                        ).privileges.can_post_messages
+                        and not (await chat.get_member(user.me.id)).privileges.can_post_messages
                     ):
                         LOGGER.error(
                             f"Not Connected Chat ID : {chat_id}, Make the User is Admin in Channel to Connect!"
                         )
                         continue
                 elif chat.type == ChatType.SUPERGROUP:
-                    if not (await chat.get_member(bot.me.id)).status in [
+                    if (await chat.get_member(bot.me.id)).status not in [
                         ChatMemberStatus.OWNER,
                         ChatMemberStatus.ADMINISTRATOR,
                     ]:
@@ -361,7 +316,7 @@ async def log_check():
                             f"Not Connected Chat ID : {chat_id}, Make the Bot is Admin in Group to Connect!"
                         )
                         continue
-                    if user and not (await chat.get_member(user.me.id)).status in [
+                    if user and (await chat.get_member(user.me.id)).status not in [
                         ChatMemberStatus.OWNER,
                         ChatMemberStatus.ADMINISTRATOR,
                     ]:
@@ -385,22 +340,14 @@ async def main():
     )
     await sync_to_async(start_aria2_listener, wait=False)
 
-    bot.add_handler(
-        MessageHandler(start, filters=command(BotCommands.StartCommand) & private)
-    )
+    bot.add_handler(MessageHandler(start, filters=command(BotCommands.StartCommand) & private))
     bot.add_handler(CallbackQueryHandler(token_callback, filters=regex(r"^pass")))
+    bot.add_handler(MessageHandler(login, filters=command(BotCommands.LoginCommand) & private))
     bot.add_handler(
-        MessageHandler(login, filters=command(BotCommands.LoginCommand) & private)
+        MessageHandler(log, filters=command(BotCommands.LogCommand) & CustomFilters.sudo)
     )
     bot.add_handler(
-        MessageHandler(
-            log, filters=command(BotCommands.LogCommand) & CustomFilters.sudo
-        )
-    )
-    bot.add_handler(
-        MessageHandler(
-            restart, filters=command(BotCommands.RestartCommand) & CustomFilters.sudo
-        )
+        MessageHandler(restart, filters=command(BotCommands.RestartCommand) & CustomFilters.sudo)
     )
     bot.add_handler(
         MessageHandler(

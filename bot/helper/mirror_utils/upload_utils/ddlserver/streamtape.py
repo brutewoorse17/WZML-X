@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
-from aiofiles.os import scandir, path as aiopath
-from aiofiles import open as aiopen
+from aiofiles.os import path as aiopath, scandir
 from aiohttp import ClientSession
 
-from bot import config_dict, LOGGER
+from bot import config_dict
 from bot.helper.ext_utils.telegraph_helper import telegraph
 
 ALLOWED_EXTS = [
@@ -71,9 +70,7 @@ class Streamtape:
             if genfolder is None:
                 return None
             folder_id = genfolder["folderid"]
-        upload_info = await self.__getUploadURL(
-            folder=folder_id, sha256=sha256, httponly=httponly
-        )
+        upload_info = await self.__getUploadURL(folder=folder_id, sha256=sha256, httponly=httponly)
         if upload_info is None:
             return None
         if self.dluploader.is_cancelled:
@@ -91,9 +88,7 @@ class Streamtape:
     async def create_folder(self, name, parent=None):
         exfolders = [
             folder["name"]
-            for folder in (await self.list_folder(folder=parent) or {"folders": []})[
-                "folders"
-            ]
+            for folder in (await self.list_folder(folder=parent) or {"folders": []})["folders"]
         ]
         if name in exfolders:
             i = 1
@@ -132,12 +127,8 @@ class Streamtape:
         tg_html += "</ol>"
         if nested:
             return tg_html
-        tg_html = (
-            f"""<figure><img src='{config_dict["COVER_IMAGE"]}'></figure>""" + tg_html
-        )
-        path = (await telegraph.create_page(title=f"StreamTape X", content=tg_html))[
-            "path"
-        ]
+        tg_html = f"""<figure><img src='{config_dict["COVER_IMAGE"]}'></figure>""" + tg_html
+        path = (await telegraph.create_page(title="StreamTape X", content=tg_html))["path"]
         return f"https://te.legra.ph/{path}"
 
     async def list_folder(self, folder=None):

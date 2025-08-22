@@ -2,8 +2,8 @@
 from bot import LOGGER
 from bot.helper.ext_utils.bot_utils import (
     EngineStatus,
-    get_readable_file_size,
     MirrorStatus,
+    get_readable_file_size,
 )
 
 
@@ -49,13 +49,9 @@ class QueueStatus:
     async def cancel_download(self):
         LOGGER.info(f"Cancelling Queue{self.__status}: {self.__name}")
         if self.__status == "dl":
-            await self.__listener.onDownloadError(
-                "task have been removed from queue/download"
-            )
+            await self.__listener.onDownloadError("task have been removed from queue/download")
         else:
-            await self.__listener.onUploadError(
-                "task have been removed from queue/upload"
-            )
+            await self.__listener.onUploadError("task have been removed from queue/upload")
 
     def eng(self):
         return EngineStatus().STATUS_QUEUE

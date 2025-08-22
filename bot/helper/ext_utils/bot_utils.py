@@ -1,29 +1,4 @@
 #!/usr/bin/env python3
-import platform
-from base64 import b64encode
-from datetime import datetime
-from os import path as ospath
-from pkg_resources import get_distribution, DistributionNotFound
-from aiofiles import open as aiopen
-from aiofiles.os import remove as aioremove, path as aiopath, mkdir
-from re import match as re_match
-from time import time
-from html import escape
-from uuid import uuid4
-from subprocess import run as srun
-from psutil import (
-    disk_usage,
-    disk_io_counters,
-    Process,
-    cpu_percent,
-    swap_memory,
-    cpu_count,
-    cpu_freq,
-    getloadavg,
-    virtual_memory,
-    net_io_counters,
-    boot_time,
-)
 from asyncio import (
     create_subprocess_exec,
     create_subprocess_shell,
@@ -31,41 +6,62 @@ from asyncio import (
     sleep,
 )
 from asyncio.subprocess import PIPE
-from functools import partial, wraps
+from base64 import b64encode
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from functools import partial, wraps
+from html import escape
+from os import path as ospath
+import platform
+from re import match as re_match
+from subprocess import run as srun
+from time import time
+from uuid import uuid4
 
+from aiofiles import open as aiopen
+from aiofiles.os import mkdir, path as aiopath
 from aiohttp import ClientSession as aioClientSession
-from psutil import virtual_memory, cpu_percent, disk_usage
-from requests import get as rget
 from mega import MegaApi
+from pkg_resources import DistributionNotFound, get_distribution
+from psutil import (
+    Process,
+    boot_time,
+    cpu_count,
+    cpu_freq,
+    cpu_percent,
+    disk_io_counters,
+    disk_usage,
+    getloadavg,
+    net_io_counters,
+    swap_memory,
+    virtual_memory,
+)
 from pyrogram.enums import ChatType
 from pyrogram.types import BotCommand
-from pyrogram.errors import PeerIdInvalid
 
-from bot.helper.ext_utils.db_handler import DbManger
-from bot.helper.themes import BotTheme
-from bot.version import get_version
 from bot import (
-    OWNER_ID,
-    bot_name,
-    bot_cache,
     DATABASE_URL,
     LOGGER,
-    get_client,
+    OWNER_ID,
     aria2,
+    bot_cache,
+    bot_loop,
+    bot_name,
+    botStartTime,
+    config_dict,
     download_dict,
     download_dict_lock,
-    botStartTime,
-    user_data,
-    config_dict,
-    bot_loop,
     extra_buttons,
-    user,
+    get_client,
+    user_data,
 )
+from bot.helper.ext_utils.db_handler import DbManger
+from bot.helper.ext_utils.shortners import short_url
+from bot.helper.ext_utils.telegraph_helper import telegraph
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
-from bot.helper.ext_utils.telegraph_helper import telegraph
-from bot.helper.ext_utils.shortners import short_url
+from bot.helper.themes import BotTheme
+from bot.version import get_version
 
 THREADPOOL = ThreadPoolExecutor(max_workers=1000)
 MAGNET_REGEX = r"magnet:\?xt=urn:(btih|btmh):[a-zA-Z0-9]*\s*"
@@ -113,9 +109,7 @@ def get_readable_file_size(size_in_bytes):
     while size_in_bytes >= 1024 and index < len(SIZE_UNITS) - 1:
         size_in_bytes /= 1024
         index += 1
-    return (
-        f"{size_in_bytes:.2f}{SIZE_UNITS[index]}" if index > 0 else f"{size_in_bytes}B"
-    )
+    return f"{size_in_bytes:.2f}{SIZE_UNITS[index]}" if index > 0 else f"{size_in_bytes}B"
 
 
 async def getDownloadByGid(gid):
@@ -149,9 +143,7 @@ def bt_selection_buttons(id_):
         buttons.ubutton("Select Files", f"{BASE_URL}/app/files/{id_}")
         buttons.ibutton("Pincode", f"btsel pin {gid} {pincode}")
     else:
-        buttons.ubutton(
-            "Select Files", f"{BASE_URL}/app/files/{id_}?pin_code={pincode}"
-        )
+        buttons.ubutton("Select Files", f"{BASE_URL}/app/files/{id_}?pin_code={pincode}")
     buttons.ibutton("Cancel", f"btsel rm {gid} {id_}")
     buttons.ibutton("Done Selecting", f"btsel done {gid} {id_}")
     return buttons.build_menu(2)
@@ -263,9 +255,7 @@ def get_readable_message():
     if PAGE_NO > PAGES and PAGES != 0:
         globals()["STATUS_START"] = STATUS_LIMIT * (PAGES - 1)
         globals()["PAGE_NO"] = PAGES
-    for download in list(download_dict.values())[
-        STATUS_START : STATUS_LIMIT + STATUS_START
-    ]:
+    for download in list(download_dict.values())[STATUS_START : STATUS_LIMIT + STATUS_START]:
         msg_link = (
             download.message.link
             if download.message.chat.type in [ChatType.SUPERGROUP, ChatType.CHANNEL]
@@ -277,8 +267,7 @@ def get_readable_message():
             "STATUS_NAME",
             Name=(
                 "Task is being Processed!"
-                if config_dict["SAFE_MODE"]
-                and elapsed >= config_dict["STATUS_UPDATE_INTERVAL"]
+                if config_dict["SAFE_MODE"] and elapsed >= config_dict["STATUS_UPDATE_INTERVAL"]
                 else escape(f"{download.name()}")
             ),
         )
@@ -323,12 +312,8 @@ def get_readable_message():
         msg += BotTheme("USER", User=download.message.from_user.mention(style="html"))
         msg += BotTheme("ID", Id=download.message.from_user.id)
         if (download.eng()).startswith("qBit"):
-            msg += BotTheme(
-                "BTSEL", Btsel=f"/{BotCommands.BtSelectCommand}_{download.gid()}"
-            )
-        msg += BotTheme(
-            "CANCEL", Cancel=f"/{BotCommands.CancelMirror}_{download.gid()}"
-        )
+            msg += BotTheme("BTSEL", Btsel=f"/{BotCommands.BtSelectCommand}_{download.gid()}")
+        msg += BotTheme("CANCEL", Cancel=f"/{BotCommands.CancelMirror}_{download.gid()}")
 
     if len(msg) == 0:
         return None, None
@@ -352,9 +337,7 @@ def get_readable_message():
     for download in download_dict.values():
         tstatus = download.status()
         spd = (
-            download.speed()
-            if tstatus != MirrorStatus.STATUS_SEEDING
-            else download.upload_speed()
+            download.speed() if tstatus != MirrorStatus.STATUS_SEEDING else download.upload_speed()
         )
         speed_in_bytes_per_second = convert_speed_to_bytes_per_second(spd)
         if tstatus == MirrorStatus.STATUS_DOWNLOADING:
@@ -685,9 +668,7 @@ async def get_stats(event, key="home"):
                 if cpu_freq()
                 else "Access Denied"
             ),
-            sys_load="%, ".join(
-                str(round((x / cpu_count() * 100), 2)) for x in getloadavg()
-            )
+            sys_load="%, ".join(str(round((x / cpu_count() * 100), 2)) for x in getloadavg())
             + "%, (1m, 5m, 15m)",
             p_core=cpu_count(logical=False),
             v_core=cpu_count(logical=True) - cpu_count(logical=False),
@@ -704,9 +685,7 @@ async def get_stats(event, key="home"):
                 )
             )[0]
             changelog = (
-                await cmd_exec(
-                    "git log -1 --pretty=format:'<code>%s</code> <b>By</b> %an'", True
-                )
+                await cmd_exec("git log -1 --pretty=format:'<code>%s</code> <b>By</b> %an'", True)
             )[0]
         official_v = (
             await cmd_exec(
@@ -815,23 +794,16 @@ async def fetch_user_dumps(user_id):
 
 async def checking_access(user_id, button=None):
     if not config_dict["TOKEN_TIMEOUT"] or bool(
-        user_id == OWNER_ID
-        or user_id in user_data
-        and user_data[user_id].get("is_sudo")
+        user_id == OWNER_ID or user_id in user_data and user_data[user_id].get("is_sudo")
     ):
         return None, button
     user_data.setdefault(user_id, {})
     data = user_data[user_id]
     expire = data.get("time")
-    if (
-        config_dict["LOGIN_PASS"] is not None
-        and data.get("token", "") == config_dict["LOGIN_PASS"]
-    ):
+    if config_dict["LOGIN_PASS"] is not None and data.get("token", "") == config_dict["LOGIN_PASS"]:
         return None, button
     isExpired = (
-        expire is None
-        or expire is not None
-        and (time() - expire) > config_dict["TOKEN_TIMEOUT"]
+        expire is None or expire is not None and (time() - expire) > config_dict["TOKEN_TIMEOUT"]
     )
     if isExpired:
         token = data["token"] if expire is None and "token" in data else str(uuid4())

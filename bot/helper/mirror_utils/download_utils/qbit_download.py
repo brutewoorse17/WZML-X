@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
 from time import time
-from aiofiles.os import remove as aioremove, path as aiopath
+
+from aiofiles.os import path as aiopath, remove as aioremove
 
 from bot import (
+    LOGGER,
+    config_dict,
     download_dict,
     download_dict_lock,
     get_client,
-    LOGGER,
-    config_dict,
     non_queued_dl,
     queue_dict_lock,
 )
+from bot.helper.ext_utils.bot_utils import bt_selection_buttons, sync_to_async
+from bot.helper.ext_utils.task_manager import is_queued
+from bot.helper.listeners.qbit_listener import onDownloadStart
 from bot.helper.mirror_utils.status_utils.qbit_status import QbittorrentStatus
 from bot.helper.telegram_helper.message_utils import (
-    sendMessage,
     deleteMessage,
+    sendMessage,
     sendStatusMessage,
 )
-from bot.helper.ext_utils.bot_utils import bt_selection_buttons, sync_to_async
-from bot.helper.listeners.qbit_listener import onDownloadStart
-from bot.helper.ext_utils.task_manager import is_queued
-
 
 """
 Only v1 torrents
@@ -67,9 +67,7 @@ async def add_qb_torrent(link, path, listener, ratio, seed_time):
             tor_info = await sync_to_async(client.torrents_info, tag=f"{listener.uid}")
             if len(tor_info) == 0:
                 while True:
-                    tor_info = await sync_to_async(
-                        client.torrents_info, tag=f"{listener.uid}"
-                    )
+                    tor_info = await sync_to_async(client.torrents_info, tag=f"{listener.uid}")
                     if len(tor_info) > 0:
                         break
                     elif time() - ADD_TIME >= 120:
@@ -86,9 +84,7 @@ async def add_qb_torrent(link, path, listener, ratio, seed_time):
             return
 
         async with download_dict_lock:
-            download_dict[listener.uid] = QbittorrentStatus(
-                listener, queued=added_to_queue
-            )
+            download_dict[listener.uid] = QbittorrentStatus(listener, queued=added_to_queue)
         await onDownloadStart(f"{listener.uid}")
 
         if added_to_queue:
@@ -105,9 +101,7 @@ async def add_qb_torrent(link, path, listener, ratio, seed_time):
                 metamsg = "Downloading Metadata, wait then you can select files. Use torrent file to avoid this wait."
                 meta = await sendMessage(listener.message, metamsg)
                 while True:
-                    tor_info = await sync_to_async(
-                        client.torrents_info, tag=f"{listener.uid}"
-                    )
+                    tor_info = await sync_to_async(client.torrents_info, tag=f"{listener.uid}")
                     if len(tor_info) == 0:
                         await deleteMessage(meta)
                         return

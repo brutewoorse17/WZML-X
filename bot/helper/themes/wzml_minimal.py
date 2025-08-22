@@ -13,10 +13,10 @@ class WZMLStyle:
     OWN_TOKEN_GENERATE = (
         """<b>Temporary Token is not yours!</b>\n\n<i>Kindly generate your own.</i>"""
     )
-    USED_TOKEN = (
-        """<b>Temporary Token already used!</b>\n\n<i>Kindly generate a new one.</i>"""
+    USED_TOKEN = """<b>Temporary Token already used!</b>\n\n<i>Kindly generate a new one.</i>"""
+    LOGGED_PASSWORD = (
+        """<b>Bot Already Logged In via Password</b>\n\n<i>No Need to Accept Temp Tokens.</i>"""
     )
-    LOGGED_PASSWORD = """<b>Bot Already Logged In via Password</b>\n\n<i>No Need to Accept Temp Tokens.</i>"""
     ACTIVATE_BUTTON = "Activate Temporary Token"
     TOKEN_MSG = """<b><u>Generated Temporary Login Token!</u></b>
 <b>Temp Token:</b> <code>{token}</code>
@@ -136,7 +136,9 @@ class WZMLStyle:
 ------------------------------------------\n\n"""
 
     # async def __msg_to_reply(self): ---> pyrogramEngine.py
-    PM_START = "➲ <b><u>Task Started :</u></b>\n┃\n┖ <b>Link:</b> <a href='{msg_link}'>Click Here</a>"
+    PM_START = (
+        "➲ <b><u>Task Started :</u></b>\n┃\n┖ <b>Link:</b> <a href='{msg_link}'>Click Here</a>"
+    )
     L_LOG_START = "➲ <b><u>Leech Started :</u></b>\n┃\n┠ <b>User :</b> {mention} ( #ID{uid} )\n┖ <b>Source :</b> <a href='{msg_link}'>Click Here</a>"
 
     # async def onUploadComplete(): ---> tasks_listener.py
@@ -227,9 +229,7 @@ class WZMLStyle:
     # ---------------------
 
     # STOP_DUPLICATE_MSG: ---> clone.py, aria2_listener.py, task_manager.py
-    STOP_DUPLICATE = (
-        "File/Folder is already available in Drive.\nHere are {content} list results:"
-    )
+    STOP_DUPLICATE = "File/Folder is already available in Drive.\nHere are {content} list results:"
     # ---------------------
 
     # async def countNode(_, message): ----> gd_count.py

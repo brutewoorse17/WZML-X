@@ -52,9 +52,7 @@ class DirectListener:
                 self.task = self.task.live
                 if error_message := self.task.error_message:
                     self.__failed += 1
-                    LOGGER.error(
-                        f"Unable to download {self.task.name} due to: {error_message}"
-                    )
+                    LOGGER.error(f"Unable to download {self.task.name} due to: {error_message}")
                     self.task.remove(True, True)
                     break
                 elif self.task.is_complete:
@@ -66,9 +64,7 @@ class DirectListener:
         if self.__is_cancelled:
             return
         if self.__failed == len(contents):
-            async_to_sync(
-                self.__listener.onDownloadError, "All files are failed to download!"
-            )
+            async_to_sync(self.__listener.onDownloadError, "All files are failed to download!")
             return
         async_to_sync(self.__listener.onDownloadComplete)
 

@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-from pyrogram.handlers import MessageHandler, CallbackQueryHandler
-from pyrogram.filters import command, regex
-from aiohttp import ClientSession
 from html import escape
 from urllib.parse import quote
 
-from bot import bot, LOGGER, config_dict, get_client
-from bot.helper.telegram_helper.message_utils import editMessage, sendMessage
-from bot.helper.ext_utils.telegraph_helper import telegraph
-from bot.helper.telegram_helper.filters import CustomFilters
-from bot.helper.telegram_helper.bot_commands import BotCommands
+from aiohttp import ClientSession
+from pyrogram.filters import command, regex
+from pyrogram.handlers import CallbackQueryHandler, MessageHandler
+
+from bot import LOGGER, bot, config_dict, get_client
 from bot.helper.ext_utils.bot_utils import (
-    get_readable_file_size,
-    sync_to_async,
-    new_task,
     checking_access,
+    get_readable_file_size,
+    new_task,
+    sync_to_async,
 )
+from bot.helper.ext_utils.telegraph_helper import telegraph
+from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
+from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import editMessage, sendMessage
 
 PLUGINS = []
 SITES = None
@@ -45,9 +46,7 @@ async def initiate_search_tools():
             async with ClientSession(trust_env=True) as c:
                 async with c.get(f"{SEARCH_API_LINK}/api/v1/sites") as res:
                     data = await res.json()
-            SITES = {
-                str(site): str(site).capitalize() for site in data["supported_sites"]
-            }
+            SITES = {str(site): str(site).capitalize() for site in data["supported_sites"]}
             SITES["all"] = "All"
         except Exception as e:
             LOGGER.error(
@@ -65,7 +64,9 @@ async def __search(key, site, message, method):
             if site == "all":
                 api = f"{SEARCH_API_LINK}/api/v1/all/search?query={key}&limit={SEARCH_LIMIT}"
             else:
-                api = f"{SEARCH_API_LINK}/api/v1/search?site={site}&query={key}&limit={SEARCH_LIMIT}"
+                api = (
+                    f"{SEARCH_API_LINK}/api/v1/search?site={site}&query={key}&limit={SEARCH_LIMIT}"
+                )
         elif method == "apitrend":
             LOGGER.info(f"API Trending from {site}")
             if site == "all":
@@ -77,9 +78,7 @@ async def __search(key, site, message, method):
             if site == "all":
                 api = f"{SEARCH_API_LINK}/api/v1/all/recent?limit={SEARCH_LIMIT}"
             else:
-                api = (
-                    f"{SEARCH_API_LINK}/api/v1/recent?site={site}&limit={SEARCH_LIMIT}"
-                )
+                api = f"{SEARCH_API_LINK}/api/v1/recent?site={site}&limit={SEARCH_LIMIT}"
         try:
             async with ClientSession(trust_env=True) as c:
                 async with c.get(api) as res:
@@ -94,11 +93,11 @@ async def __search(key, site, message, method):
             if method == "apitrend":
                 msg += f" <b>trending result(s)\nTorrent Site:- <i>{SITES.get(site)}</i></b>"
             elif method == "apirecent":
-                msg += (
-                    f" <b>recent result(s)\nTorrent Site:- <i>{SITES.get(site)}</i></b>"
-                )
+                msg += f" <b>recent result(s)\nTorrent Site:- <i>{SITES.get(site)}</i></b>"
             else:
-                msg += f" <b>result(s) for <i>{key}</i>\nTorrent Site:- <i>{SITES.get(site)}</i></b>"
+                msg += (
+                    f" <b>result(s) for <i>{key}</i>\nTorrent Site:- <i>{SITES.get(site)}</i></b>"
+                )
             search_results = search_results["data"]
         except Exception as e:
             await editMessage(message, str(e))
@@ -106,14 +105,10 @@ async def __search(key, site, message, method):
     else:
         LOGGER.info(f"PLUGINS Searching: {key} from {site}")
         client = await sync_to_async(get_client)
-        search = await sync_to_async(
-            client.search_start, pattern=key, plugins=site, category="all"
-        )
+        search = await sync_to_async(client.search_start, pattern=key, plugins=site, category="all")
         search_id = search.id
         while True:
-            result_status = await sync_to_async(
-                client.search_status, search_id=search_id
-            )
+            result_status = await sync_to_async(client.search_status, search_id=search_id)
             status = result_status[0].status
             if status != "Running":
                 break
@@ -153,7 +148,9 @@ async def __getResult(search_results, key, message, method):
         if method.startswith("api"):
             try:
                 if "name" in result.keys():
-                    msg += f"<code><a href='{result['url']}'>{escape(result['name'])}</a></code><br>"
+                    msg += (
+                        f"<code><a href='{result['url']}'>{escape(result['name'])}</a></code><br>"
+                    )
                 if "torrents" in result.keys():
                     for subres in result["torrents"]:
                         msg += f"<b>Quality: </b>{subres['quality']} | <b>Type: </b>{subres['type']} | "
@@ -199,9 +196,7 @@ async def __getResult(search_results, key, message, method):
     if msg != "":
         telegraph_content.append(msg)
 
-    await editMessage(
-        message, f"<b>Creating</b> {len(telegraph_content)} <b>Telegraph pages.</b>"
-    )
+    await editMessage(message, f"<b>Creating</b> {len(telegraph_content)} <b>Telegraph pages.</b>")
     path = [
         (
             await telegraph.create_page(
@@ -251,9 +246,7 @@ async def torrentSearch(_, message):
         await sendMessage(message, msg, btn.build_menu(1))
         return
     if SITES is None and not SEARCH_PLUGINS:
-        await sendMessage(
-            message, "No API link or search PLUGINS added for this function"
-        )
+        await sendMessage(message, "No API link or search PLUGINS added for this function")
     elif len(key) == 1 and SITES is None:
         await sendMessage(message, "Send a search key along with command")
     elif len(key) == 1:

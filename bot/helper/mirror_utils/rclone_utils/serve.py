@@ -1,9 +1,10 @@
 from asyncio import create_subprocess_exec
-from aiofiles.os import path as aiopath
-from aiofiles import open as aiopen
 from configparser import ConfigParser
 
-from bot import config_dict, bot_loop
+from aiofiles import open as aiopen
+from aiofiles.os import path as aiopath
+
+from bot import bot_loop, config_dict
 
 RcloneServe = []
 
@@ -18,7 +19,7 @@ async def rclone_serve_booter():
                 pass
         return
     config = ConfigParser()
-    async with aiopen("rclone.conf", "r") as f:
+    async with aiopen("rclone.conf") as f:
         contents = await f.read()
         config.read_string(contents)
     if not config.has_section("combine"):
@@ -51,9 +52,7 @@ async def rclone_serve_booter():
         "--buffer-size",
         "64M",
     ]
-    if (user := config_dict["RCLONE_SERVE_USER"]) and (
-        pswd := config_dict["RCLONE_SERVE_PASS"]
-    ):
+    if (user := config_dict["RCLONE_SERVE_USER"]) and (pswd := config_dict["RCLONE_SERVE_PASS"]):
         cmd.extend(("--user", user, "--pass", pswd))
     rcs = await create_subprocess_exec(*cmd)
     RcloneServe.append(rcs)

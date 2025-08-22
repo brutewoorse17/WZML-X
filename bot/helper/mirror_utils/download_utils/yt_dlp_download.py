@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
-from os import path as ospath, listdir
-from secrets import token_hex
 from logging import getLogger
-from yt_dlp import YoutubeDL, DownloadError
+from os import listdir, path as ospath
 from re import search as re_search
+from secrets import token_hex
 
-from bot import download_dict_lock, download_dict, non_queued_dl, queue_dict_lock
-from bot.helper.telegram_helper.message_utils import sendStatusMessage
-from ..status_utils.yt_dlp_download_status import YtDlpDownloadStatus
-from bot.helper.mirror_utils.status_utils.queue_status import QueueStatus
-from bot.helper.ext_utils.bot_utils import sync_to_async, async_to_sync
+from yt_dlp import DownloadError, YoutubeDL
+
+from bot import download_dict, download_dict_lock, non_queued_dl, queue_dict_lock
+from bot.helper.ext_utils.bot_utils import async_to_sync, sync_to_async
 from bot.helper.ext_utils.task_manager import (
     is_queued,
-    stop_duplicate_check,
     limit_checker,
+    stop_duplicate_check,
 )
+from bot.helper.mirror_utils.status_utils.queue_status import QueueStatus
+from bot.helper.telegram_helper.message_utils import sendStatusMessage
+
+from ..status_utils.yt_dlp_download_status import YtDlpDownloadStatus
 
 LOGGER = getLogger(__name__)
 
@@ -27,9 +29,9 @@ class MyLogger:
     def debug(self, msg):
         # Hack to fix changing extension
         if not self.obj.is_playlist:
-            if match := re_search(
-                r".Merger..Merging formats into..(.*?).$", msg
-            ) or re_search(r".ExtractAudio..Destination..(.*?)$", msg):
+            if match := re_search(r".Merger..Merging formats into..(.*?).$", msg) or re_search(
+                r".ExtractAudio..Destination..(.*?)$", msg
+            ):
                 LOGGER.info(msg)
                 newname = match.group(1)
                 newname = newname.rsplit("/", 1)[-1]
@@ -191,9 +193,7 @@ class YoutubeDLHelper:
                     if not self.__is_cancelled:
                         self.__onDownloadError(str(e))
                     return
-            if self.is_playlist and (
-                not ospath.exists(path) or len(listdir(path)) == 0
-            ):
+            if self.is_playlist and (not ospath.exists(path) or len(listdir(path)) == 0):
                 self.__onDownloadError(
                     "No video available to download from this playlist. Check logs for more details"
                 )
@@ -252,9 +252,7 @@ class YoutubeDLHelper:
         base_name, ext = ospath.splitext(self.name)
         trim_name = self.name if self.is_playlist else base_name
         if len(trim_name.encode()) > 200:
-            self.name = (
-                self.name[:200] if self.is_playlist else f"{base_name[:200]}{ext}"
-            )
+            self.name = self.name[:200] if self.is_playlist else f"{base_name[:200]}{ext}"
             base_name = ospath.splitext(self.name)[0]
 
         if self.is_playlist:

@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 from contextlib import suppress
-from re import findall, IGNORECASE
+from re import IGNORECASE, findall
+
 from imdb import Cinemagoer
 from pycountry import countries as conn
-
-from pyrogram.handlers import MessageHandler, CallbackQueryHandler
-from pyrogram.filters import command, regex
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram.errors import MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
+from pyrogram.filters import command, regex
+from pyrogram.handlers import CallbackQueryHandler, MessageHandler
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from bot import bot, LOGGER, user_data, config_dict
-from bot.helper.telegram_helper.filters import CustomFilters
-from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.telegram_helper.message_utils import sendMessage, editMessage
+from bot import bot, config_dict
 from bot.helper.ext_utils.bot_utils import get_readable_time
+from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
+from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import editMessage, sendMessage
 
 imdb = Cinemagoer()
 
@@ -69,18 +69,14 @@ async def imdb_search(_, message):
         else:
             movies = get_poster(title, bulk=True)
             if not movies:
-                return editMessage(
-                    "<i>No Results Found</i>, Try Again or Use <b>Title ID</b>", k
-                )
+                return editMessage("<i>No Results Found</i>, Try Again or Use <b>Title ID</b>", k)
             for movie in movies:  # Refurbished Soon !!
                 buttons.ibutton(
                     f"🎬 {movie.get('title')} ({movie.get('year')})",
                     f"imdb {user_id} movie {movie.movieID}",
                 )
         buttons.ibutton("🚫 Close 🚫", f"imdb {user_id} close")
-        await editMessage(
-            k, "<b><i>Here What I found on IMDb.com</i></b>", buttons.build_menu(1)
-        )
+        await editMessage(k, "<b><i>Here What I found on IMDb.com</i></b>", buttons.build_menu(1))
     else:
         await sendMessage(
             message,
@@ -106,15 +102,11 @@ def get_poster(query, bulk=False, id=False, file=None):
         if not movieid:
             return None
         if year:
-            filtered = (
-                list(filter(lambda k: str(k.get("year")) == str(year), movieid))
-                or movieid
-            )
+            filtered = list(filter(lambda k: str(k.get("year")) == str(year), movieid)) or movieid
         else:
             filtered = movieid
         movieid = (
-            list(filter(lambda k: k.get("kind") in ["movie", "tv series"], filtered))
-            or filtered
+            list(filter(lambda k: k.get("kind") in ["movie", "tv series"], filtered)) or filtered
         )
         if bulk:
             return movieid
@@ -188,9 +180,7 @@ def list_to_hash(k, flagg=False, emoji=False):
         if not flagg:
             if emoji:
                 return str(
-                    IMDB_GENRE_EMOJI.get(k[0], "")
-                    + " #"
-                    + k[0].replace(" ", "_").replace("-", "_")
+                    IMDB_GENRE_EMOJI.get(k[0], "") + " #" + k[0].replace(" ", "_").replace("-", "_")
                 )
             return str("#" + k[0].replace(" ", "_").replace("-", "_"))
         try:
@@ -233,20 +223,12 @@ async def imdb_callback(_, query):
         if imdb["trailer"]:
             if isinstance(imdb["trailer"], list):
                 buttons.append(
-                    [
-                        InlineKeyboardButton(
-                            "▶️ IMDb Trailer ", url=str(imdb["trailer"][-1])
-                        )
-                    ]
+                    [InlineKeyboardButton("▶️ IMDb Trailer ", url=str(imdb["trailer"][-1]))]
                 )
                 imdb["trailer"] = list_to_str(imdb["trailer"])
             else:
-                buttons.append(
-                    [InlineKeyboardButton("▶️ IMDb Trailer ", url=str(imdb["trailer"]))]
-                )
-        buttons.append(
-            [InlineKeyboardButton("🚫 Close 🚫", callback_data=f"imdb {user_id} close")]
-        )
+                buttons.append([InlineKeyboardButton("▶️ IMDb Trailer ", url=str(imdb["trailer"]))])
+        buttons.append([InlineKeyboardButton("🚫 Close 🚫", callback_data=f"imdb {user_id} close")])
         template = ""
         # if int(data[1]) in user_data and user_data[int(data[1])].get('imdb_temp'):
         #    template = user_data[int(data[1])].get('imdb_temp')

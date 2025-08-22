@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-from pyrogram.handlers import MessageHandler
-from pyrogram.filters import command
-from os import path as ospath, getcwd, chdir
-from aiofiles import open as aiopen
-from traceback import format_exc
-from textwrap import indent
-from io import StringIO, BytesIO
-from re import match
 from contextlib import redirect_stdout, suppress
+from io import BytesIO, StringIO
+from os import chdir, getcwd, path as ospath
+from re import match
+from textwrap import indent
+from traceback import format_exc
+
+from aiofiles import open as aiopen
+from pyrogram.filters import command
+from pyrogram.handlers import MessageHandler
 
 from bot import LOGGER, bot, user
-from bot.helper.telegram_helper.filters import CustomFilters
-from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.telegram_helper.message_utils import sendFile, sendMessage
 from bot.helper.ext_utils.bot_utils import new_task
+from bot.helper.telegram_helper.bot_commands import BotCommands
+from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import sendFile, sendMessage
 
 namespaces = {}
 
@@ -89,7 +90,7 @@ async def do(func, message):
     try:
         with redirect_stdout(stdout):
             func_return = await func()
-    except Exception as e:
+    except Exception:
         value = stdout.getvalue()
         return f"{value}{format_exc()}"
     else:
@@ -100,7 +101,7 @@ async def do(func, message):
                 result = f"{value}"
             else:
                 with suppress(Exception):
-                    result = f"{repr(eval(body, env))}"
+                    result = f"{eval(body, env)!r}"
         else:
             result = f"{value}{func_return}"
         if result:
@@ -118,17 +119,11 @@ async def clear(client, message):
 
 
 bot.add_handler(
-    MessageHandler(
-        evaluate, filters=command(BotCommands.EvalCommand) & CustomFilters.sudo
-    )
+    MessageHandler(evaluate, filters=command(BotCommands.EvalCommand) & CustomFilters.sudo)
 )
 bot.add_handler(
-    MessageHandler(
-        execute, filters=command(BotCommands.ExecCommand) & CustomFilters.sudo
-    )
+    MessageHandler(execute, filters=command(BotCommands.ExecCommand) & CustomFilters.sudo)
 )
 bot.add_handler(
-    MessageHandler(
-        clear, filters=command(BotCommands.ClearLocalsCommand) & CustomFilters.sudo
-    )
+    MessageHandler(clear, filters=command(BotCommands.ClearLocalsCommand) & CustomFilters.sudo)
 )

@@ -1,27 +1,28 @@
-from hashlib import md5
-from time import strftime, gmtime, time
-from re import sub as re_sub, search as re_search
-from shlex import split as ssplit
-from natsort import natsorted
-from os import path as ospath
-from aiofiles.os import remove as aioremove, path as aiopath, mkdir, makedirs, listdir
-from aioshutil import rmtree as aiormtree
-from contextlib import suppress
-from asyncio import create_subprocess_exec, create_task, gather, Semaphore
+from asyncio import Semaphore, create_subprocess_exec, gather
 from asyncio.subprocess import PIPE
-from telegraph import upload_file
+from contextlib import suppress
+from hashlib import md5
+from os import path as ospath
+from re import search as re_search, sub as re_sub
+from shlex import split as ssplit
+from time import gmtime, strftime, time
+
+from aiofiles.os import listdir, makedirs, mkdir, path as aiopath, remove as aioremove
+from aioshutil import rmtree as aiormtree
 from langcodes import Language
+from natsort import natsorted
+from telegraph import upload_file
 
 from bot import LOGGER, MAX_SPLIT_SIZE, config_dict, user_data
-from bot.modules.mediainfo import parseinfo
 from bot.helper.ext_utils.bot_utils import (
     cmd_exec,
-    sync_to_async,
     get_readable_file_size,
     get_readable_time,
+    sync_to_async,
 )
 from bot.helper.ext_utils.fs_utils import ARCH_EXT, get_mime_type
 from bot.helper.ext_utils.telegraph_helper import telegraph
+from bot.modules.mediainfo import parseinfo
 
 
 async def is_multi_streams(path):
@@ -85,9 +86,7 @@ async def get_media_info(path, metadata=False):
     duration = round(float(fields.get("duration", 0)))
     if metadata:
         lang, qual, stitles = "", "", ""
-        if (streams := ffresult.get("streams")) and streams[0].get(
-            "codec_type"
-        ) == "video":
+        if (streams := ffresult.get("streams")) and streams[0].get("codec_type") == "video":
             qual = int(streams[0].get("height"))
             qual = f"{480 if qual <= 480 else 540 if qual <= 540 else 720 if qual <= 720 else 1080 if qual <= 1080 else 2160 if qual <= 2160 else 4320 if qual <= 4320 else 8640}p"
             for stream in streams:
@@ -114,9 +113,7 @@ async def get_media_info(path, metadata=False):
 
 async def get_document_type(path):
     is_video, is_audio, is_image = False, False, False
-    if path.endswith(tuple(ARCH_EXT)) or re_search(
-        r".+(\.|_)(rar|7z|zip|bin)(\.0*\d+)?$", path
-    ):
+    if path.endswith(tuple(ARCH_EXT)) or re_search(r".+(\.|_)(rar|7z|zip|bin)(\.0*\d+)?$", path):
         return is_video, is_audio, is_image
     mime_type = await sync_to_async(get_mime_type, path)
     if mime_type.startswith("audio"):
@@ -211,9 +208,7 @@ async def take_ss(video_file, duration=None, total=1, gen_ss=False):
     async def extract_ss(eq_thumb):
         async with thumb_sem:
             cmd[5] = str((duration // total) * eq_thumb)
-            tstamps[f"wz_thumb_{eq_thumb}.jpg"] = strftime(
-                "%H:%M:%S", gmtime(float(cmd[5]))
-            )
+            tstamps[f"wz_thumb_{eq_thumb}.jpg"] = strftime("%H:%M:%S", gmtime(float(cmd[5])))
             cmd[-1] = ospath.join(des_dir, f"wz_thumb_{eq_thumb}.jpg")
             task = await create_subprocess_exec(*cmd, stderr=PIPE)
             return (task, await task.wait(), eq_thumb)
@@ -222,9 +217,7 @@ async def take_ss(video_file, duration=None, total=1, gen_ss=False):
     status = await gather(*tasks)
 
     for task, rtype, eq_thumb in status:
-        if rtype != 0 or not await aiopath.exists(
-            ospath.join(des_dir, f"wz_thumb_{eq_thumb}.jpg")
-        ):
+        if rtype != 0 or not await aiopath.exists(ospath.join(des_dir, f"wz_thumb_{eq_thumb}.jpg")):
             err = (await task.stderr.read()).decode().strip()
             LOGGER.error(
                 f"Error while extracting thumbnail no. {eq_thumb} from video. Name: {video_file} stderr: {err}"
@@ -420,7 +413,7 @@ async def format_filename(file_, user_id, dirpath=None, isMirror=False):
     if remname:
         if not remname.startswith("|"):
             remname = f"|{remname}"
-        remname = remname.replace("\s", " ")
+        remname = remname.replace(r"\s", " ")
         slit = remname.split("|")
         __newFileName = ospath.splitext(file_)[0]
         for rep in range(1, len(slit)):
@@ -436,25 +429,23 @@ async def format_filename(file_, user_id, dirpath=None, isMirror=False):
 
     nfile_ = file_
     if prefix:
-        nfile_ = prefix.replace("\s", " ") + file_
-        prefix = re_sub(r"<.*?>", "", prefix).replace("\s", " ")
+        nfile_ = prefix.replace(r"\s", " ") + file_
+        prefix = re_sub(r"<.*?>", "", prefix).replace(r"\s", " ")
         if not file_.startswith(prefix):
             file_ = f"{prefix}{file_}"
 
     if suffix and not isMirror:
-        suffix = suffix.replace("\s", " ")
+        suffix = suffix.replace(r"\s", " ")
         sufLen = len(suffix)
         fileDict = file_.split(".")
         _extIn = 1 + len(fileDict[-1])
         _extOutName = ".".join(fileDict[:-1]).replace(".", " ").replace("-", " ")
         _newExtFileName = f"{_extOutName}{suffix}.{fileDict[-1]}"
         if len(_extOutName) > (64 - (sufLen + _extIn)):
-            _newExtFileName = (
-                _extOutName[: 64 - (sufLen + _extIn)] + f"{suffix}.{fileDict[-1]}"
-            )
+            _newExtFileName = _extOutName[: 64 - (sufLen + _extIn)] + f"{suffix}.{fileDict[-1]}"
         file_ = _newExtFileName
     elif suffix:
-        suffix = suffix.replace("\s", " ")
+        suffix = suffix.replace(r"\s", " ")
         file_ = (
             f"{ospath.splitext(file_)[0]}{suffix}{ospath.splitext(file_)[1]}"
             if "." in file_
@@ -472,10 +463,10 @@ async def format_filename(file_, user_id, dirpath=None, isMirror=False):
             return f"{{{match.group(1).lower()}}}"
 
         lcaption = (
-            lcaption.replace("\|", "%%")
-            .replace("\{", "&%&")
-            .replace("\}", "$%$")
-            .replace("\s", " ")
+            lcaption.replace(r"\|", "%%")
+            .replace(r"\{", "&%&")
+            .replace(r"\}", "$%$")
+            .replace(r"\s", " ")
         )
         slit = lcaption.split("|")
         slit[0] = re_sub(r"\{([^}]+)\}", lowerVars, slit[0])
@@ -505,7 +496,9 @@ async def format_filename(file_, user_id, dirpath=None, isMirror=False):
 
 async def get_ss(up_path, ss_no):
     thumbs_path, tstamps = await take_ss(up_path, total=min(ss_no, 250), gen_ss=True)
-    th_html = f"📌 <h4>{ospath.basename(up_path)}</h4><br>📇 <b>Total Screenshots:</b> {ss_no}<br><br>"
+    th_html = (
+        f"📌 <h4>{ospath.basename(up_path)}</h4><br>📇 <b>Total Screenshots:</b> {ss_no}<br><br>"
+    )
     up_sem = Semaphore(25)
 
     async def telefile(thumb):
@@ -520,9 +513,7 @@ async def get_ss(up_path, ss_no):
         for tele_id, stamp in results
     )
     await aiormtree(thumbs_path)
-    link_id = (await telegraph.create_page(title="ScreenShots X", content=th_html))[
-        "path"
-    ]
+    link_id = (await telegraph.create_page(title="ScreenShots X", content=th_html))["path"]
     return f"https://graph.org/{link_id}"
 
 

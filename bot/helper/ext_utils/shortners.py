@@ -45,9 +45,7 @@ def short_url(longurl, attempt=0):
                 headers=headers,
             ).json()["link"]
         elif "ouo.io" in _shortener:
-            return cget(
-                "GET", f"http://ouo.io/api/{_shortener_api}?s={longurl}", verify=False
-            ).text
+            return cget("GET", f"http://ouo.io/api/{_shortener_api}?s={longurl}", verify=False).text
         elif "cutt.ly" in _shortener:
             return cget(
                 "GET",

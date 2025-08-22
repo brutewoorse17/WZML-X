@@ -45,9 +45,7 @@ class _BotCommands:
                     f"qzl{CMD_SUFFIX}",
                 ]
             )
-            self.YtdlLeechCommand.extend(
-                [f"ytdlzipleech{CMD_SUFFIX}", f"yzl{CMD_SUFFIX}"]
-            )
+            self.YtdlLeechCommand.extend([f"ytdlzipleech{CMD_SUFFIX}", f"yzl{CMD_SUFFIX}"])
         self.CloneCommand = [f"clone{CMD_SUFFIX}", f"c{CMD_SUFFIX}"]
         self.CountCommand = f"count{CMD_SUFFIX}"
         self.DeleteCommand = f"del{CMD_SUFFIX}"

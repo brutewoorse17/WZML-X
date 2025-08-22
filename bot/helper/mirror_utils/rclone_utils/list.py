@@ -1,28 +1,29 @@
 #!/usr/bin/env python3
-from asyncio import wait_for, Event, wrap_future
-from aiofiles.os import path as aiopath
-from aiofiles import open as aiopen
+from asyncio import Event, wait_for, wrap_future
 from configparser import ConfigParser
-from pyrogram.handlers import CallbackQueryHandler
-from pyrogram.filters import regex, user
 from functools import partial
 from json import loads
 from time import time
 
+from aiofiles import open as aiopen
+from aiofiles.os import path as aiopath
+from pyrogram.filters import regex, user
+from pyrogram.handlers import CallbackQueryHandler
+
 from bot import LOGGER, config_dict
+from bot.helper.ext_utils.bot_utils import (
+    cmd_exec,
+    get_readable_file_size,
+    get_readable_time,
+    new_task,
+    new_thread,
+)
 from bot.helper.ext_utils.db_handler import DbManger
 from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.message_utils import (
-    sendMessage,
-    editMessage,
     deleteMessage,
-)
-from bot.helper.ext_utils.bot_utils import (
-    cmd_exec,
-    new_thread,
-    get_readable_file_size,
-    new_task,
-    get_readable_time,
+    editMessage,
+    sendMessage,
 )
 
 LIST_LIMIT = 6
@@ -61,11 +62,7 @@ async def path_updates(client, query, obj):
         await obj.get_path()
     elif data[1] == "pa":
         index = int(data[3])
-        obj.path += (
-            f"/{obj.path_list[index]['Path']}"
-            if obj.path
-            else obj.path_list[index]["Path"]
-        )
+        obj.path += f"/{obj.path_list[index]['Path']}" if obj.path else obj.path_list[index]["Path"]
         if data[2] == "fo":
             await obj.get_path()
         else:
@@ -233,18 +230,14 @@ class RcloneList:
             return
         res, err, code = await cmd_exec(cmd)
         if code not in [0, -9]:
-            LOGGER.error(
-                f"While rclone listing. Path: {self.remote}{self.path}. Stderr: {err}"
-            )
+            LOGGER.error(f"While rclone listing. Path: {self.remote}{self.path}. Stderr: {err}")
             self.remote = err[:4000]
             self.path = ""
             self.event.set()
             return
         result = loads(res)
         if len(result) == 0 and itype != self.item_type and self.list_status == "rcd":
-            itype = (
-                "--dirs-only" if self.item_type == "--files-only" else "--files-only"
-            )
+            itype = "--dirs-only" if self.item_type == "--files-only" else "--files-only"
             self.item_type = itype
             return await self.get_path(itype)
         self.path_list = sorted(result, key=lambda x: x["Path"])
@@ -253,7 +246,7 @@ class RcloneList:
 
     async def list_remotes(self):
         config = ConfigParser()
-        async with aiopen(self.config_path, "r") as f:
+        async with aiopen(self.config_path) as f:
             contents = await f.read()
             config.read_string(contents)
         if config.has_section("combine"):
@@ -269,9 +262,7 @@ class RcloneList:
                 else "\nTransfer Type: <i>Upload</i>"
             )
             msg += f"\nConfig Path: {self.config_path}"
-            msg += (
-                f"\nTimeout: {get_readable_time(self.__timeout-(time()-self.__time))}"
-            )
+            msg += f"\nTimeout: {get_readable_time(self.__timeout-(time()-self.__time))}"
             buttons = ButtonMaker()
             for remote in self.__sections:
                 buttons.ibutton(remote, f"rcq re {remote}:")
@@ -288,9 +279,7 @@ class RcloneList:
                 if self.list_status == "rcd"
                 else "\nTransfer Type: Upload"
             )
-            msg += (
-                f"\nTimeout: {get_readable_time(self.__timeout-(time()-self.__time))}"
-            )
+            msg += f"\nTimeout: {get_readable_time(self.__timeout-(time()-self.__time))}"
             buttons = ButtonMaker()
             buttons.ibutton("Owner Config", "rcq owner")
             buttons.ibutton("My Config", "rcq user")

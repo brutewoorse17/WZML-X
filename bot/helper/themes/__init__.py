@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-from os import listdir
 from importlib import import_module
+from os import listdir
 from random import choice as rchoice
-from bot import config_dict, LOGGER
+
+from bot import LOGGER, config_dict
 from bot.helper.themes import wzml_minimal
 
 AVL_THEMES = {}
@@ -18,9 +19,7 @@ def BotTheme(var_name, **format_vars):
     if theme_ in AVL_THEMES:
         text = getattr(AVL_THEMES[theme_].WZMLStyle(), var_name, None)
         if text is None:
-            LOGGER.error(
-                f"{var_name} not Found in {theme_}. Please recheck with Official Repo"
-            )
+            LOGGER.error(f"{var_name} not Found in {theme_}. Please recheck with Official Repo")
     elif theme_ == "random":
         rantheme = rchoice(list(AVL_THEMES.values()))
         LOGGER.info(f"Random Theme Chosen: {rantheme}")

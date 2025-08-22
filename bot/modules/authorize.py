@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-from pyrogram.handlers import MessageHandler
 from pyrogram.filters import command, regex
+from pyrogram.handlers import MessageHandler
 
-from bot import user_data, DATABASE_URL, bot, LOGGER
-from bot.helper.telegram_helper.message_utils import sendMessage
-from bot.helper.telegram_helper.filters import CustomFilters
-from bot.helper.telegram_helper.bot_commands import BotCommands
-from bot.helper.ext_utils.db_handler import DbManger
+from bot import DATABASE_URL, bot, user_data
 from bot.helper.ext_utils.bot_utils import update_user_ldata
+from bot.helper.ext_utils.db_handler import DbManger
+from bot.helper.telegram_helper.bot_commands import BotCommands
+from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import sendMessage
 
 
 async def authorize(client, message):
@@ -68,11 +68,7 @@ async def unauthorize(client, message):
     else:
         id_ = message.chat.id
     tids_ = []
-    if (
-        tid_
-        and id_ in user_data
-        and tid_ in (tids_ := user_data[id_].get("topic_ids", []))
-    ):
+    if tid_ and id_ in user_data and tid_ in (tids_ := user_data[id_].get("topic_ids", [])):
         tids_.remove(tid_)
         update_user_ldata(id_, "topic_ids", tids_)
     if id_ not in user_data or user_data[id_].get("is_auth"):
@@ -171,9 +167,7 @@ async def black_listed(_, message):
 
 
 bot.add_handler(
-    MessageHandler(
-        authorize, filters=command(BotCommands.AuthorizeCommand) & CustomFilters.sudo
-    )
+    MessageHandler(authorize, filters=command(BotCommands.AuthorizeCommand) & CustomFilters.sudo)
 )
 bot.add_handler(
     MessageHandler(
@@ -182,14 +176,10 @@ bot.add_handler(
     )
 )
 bot.add_handler(
-    MessageHandler(
-        addSudo, filters=command(BotCommands.AddSudoCommand) & CustomFilters.sudo
-    )
+    MessageHandler(addSudo, filters=command(BotCommands.AddSudoCommand) & CustomFilters.sudo)
 )
 bot.add_handler(
-    MessageHandler(
-        removeSudo, filters=command(BotCommands.RmSudoCommand) & CustomFilters.sudo
-    )
+    MessageHandler(removeSudo, filters=command(BotCommands.RmSudoCommand) & CustomFilters.sudo)
 )
 bot.add_handler(
     MessageHandler(

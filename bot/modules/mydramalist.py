@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
 from contextlib import suppress
-from aiohttp import ClientSession
-from requests import get as rget
 from urllib.parse import quote as q
-from pycountry import countries as conn
 
-from pyrogram.filters import command, regex
-from pyrogram.handlers import MessageHandler, CallbackQueryHandler
+from aiohttp import ClientSession
+from pycountry import countries as conn
 from pyrogram.errors import (
     MediaEmpty,
     PhotoInvalidDimensions,
     WebpageMediaEmpty,
-    ReplyMarkupInvalid,
 )
+from pyrogram.filters import command, regex
+from pyrogram.handlers import CallbackQueryHandler, MessageHandler
 
-from bot import LOGGER, bot, config_dict, user_data
-from bot.helper.telegram_helper.filters import CustomFilters
-from bot.helper.telegram_helper.message_utils import sendMessage, editMessage
+from bot import bot, config_dict
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
+from bot.helper.telegram_helper.filters import CustomFilters
+from bot.helper.telegram_helper.message_utils import editMessage, sendMessage
 
 LIST_ITEMS = 4
 IMDB_GENRE_EMOJI = {
@@ -128,9 +126,9 @@ def list_to_str(k, cast=False):
     elif LIST_ITEMS:
         k = k[: int(LIST_ITEMS)]
     if cast:
-        return " ".join(
-            f"""<a href="{elem.get('link')}">{elem.get('name')}</a>,""" for elem in k
-        )[:-1]
+        return " ".join(f"""<a href="{elem.get('link')}">{elem.get('name')}</a>,""" for elem in k)[
+            :-1
+        ]
     return " ".join(f"{elem}," for elem in k)[:-1]
 
 
@@ -142,9 +140,7 @@ def list_to_hash(k, flagg=False, emoji=False):
         if not flagg:
             if emoji:
                 return str(
-                    IMDB_GENRE_EMOJI.get(k[0], "")
-                    + " #"
-                    + k[0].replace(" ", "_").replace("-", "_")
+                    IMDB_GENRE_EMOJI.get(k[0], "") + " #" + k[0].replace(" ", "_").replace("-", "_")
                 )
             return str("#" + k[0].replace(" ", "_").replace("-", "_"))
         try:
@@ -197,9 +193,7 @@ async def mdl_callback(_, query):
                 )
             except (MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty):
                 poster = mdl["poster"].replace("f.jpg?v=1", "c.jpg?v=1")
-                await sendMessage(
-                    message.reply_to_message, cap, buttons.build_menu(1), poster
-                )
+                await sendMessage(message.reply_to_message, cap, buttons.build_menu(1), poster)
         else:
             await sendMessage(
                 message.reply_to_message,

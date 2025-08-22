@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
+from time import time
+
 from pyrogram.filters import command, regex
 from pyrogram.handlers import CallbackQueryHandler, MessageHandler
-from time import time
 
 from bot import bot, bot_cache, categories_dict, download_dict, download_dict_lock
 from bot.helper.ext_utils.bot_utils import (
     MirrorStatus,
     arg_parser,
-    fetch_user_tds,
     fetch_user_dumps,
+    fetch_user_tds,
+    get_readable_time,
     getDownloadByGid,
     is_gdrive_link,
     new_task,
     sync_to_async,
-    get_readable_time,
 )
 from bot.helper.ext_utils.help_messages import CATEGORY_HELP_MESSAGE
 from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
@@ -22,8 +23,8 @@ from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.message_utils import (
     editMessage,
-    sendMessage,
     open_category_btns,
+    sendMessage,
 )
 
 
@@ -60,10 +61,7 @@ async def change_category(client, message):
     if not dl:
         await sendMessage(message, CATEGORY_HELP_MESSAGE)
         return
-    if (
-        not await CustomFilters.sudo(client, message)
-        and dl.message.from_user.id != user_id
-    ):
+    if not await CustomFilters.sudo(client, message) and dl.message.from_user.id != user_id:
         await sendMessage(message, "This task is not for you!")
         return
     if dl.status() not in [
@@ -87,9 +85,7 @@ async def change_category(client, message):
         msg = "<b>Task has been Updated Successfully!</b>"
         if drive_id:
             if not (
-                folder_name := await sync_to_async(
-                    GoogleDriveHelper().getFolderData, drive_id
-                )
+                folder_name := await sync_to_async(GoogleDriveHelper().getFolderData, drive_id)
             ):
                 return await sendMessage(message, "Google Drive id validation failed!!")
             if listener.drive_id and listener.drive_id == drive_id:

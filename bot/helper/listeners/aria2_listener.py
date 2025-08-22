@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
 from asyncio import sleep
 from time import time
-from aiofiles.os import remove as aioremove, path as aiopath
 
-from bot import aria2, download_dict_lock, download_dict, LOGGER, config_dict
-from bot.helper.ext_utils.task_manager import limit_checker
-from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
-from bot.helper.mirror_utils.status_utils.aria2_status import Aria2Status
-from bot.helper.ext_utils.fs_utils import get_base_name, clean_unwanted
+from aiofiles.os import path as aiopath, remove as aioremove
+
+from bot import LOGGER, aria2, config_dict, download_dict, download_dict_lock
 from bot.helper.ext_utils.bot_utils import (
+    bt_selection_buttons,
+    get_telegraph_list,
     getDownloadByGid,
     new_thread,
-    bt_selection_buttons,
     sync_to_async,
-    get_telegraph_list,
 )
+from bot.helper.ext_utils.fs_utils import clean_unwanted, get_base_name
+from bot.helper.ext_utils.task_manager import limit_checker
+from bot.helper.mirror_utils.status_utils.aria2_status import Aria2Status
+from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
 from bot.helper.telegram_helper.message_utils import (
-    sendMessage,
     deleteMessage,
+    sendMessage,
     update_all_messages,
 )
 from bot.helper.themes import BotTheme
@@ -109,9 +110,7 @@ async def __onDownloadStarted(api, gid):
                         msg = BotTheme("STOP_DUPLICATE", content=contents_no)
                         button = await get_telegraph_list(telegraph_content)
                         await listener.onDownloadError(msg, button)
-                        await sync_to_async(
-                            api.remove, [download], force=True, files=True
-                        )
+                        await sync_to_async(api.remove, [download], force=True, files=True)
                         return
 
 
@@ -173,9 +172,7 @@ async def __onBtDownloadComplete(api, gid):
             await clean_unwanted(download.dir)
         if listener.seed:
             try:
-                await sync_to_async(
-                    api.set_options, {"max-upload-limit": "0"}, [download]
-                )
+                await sync_to_async(api.set_options, {"max-upload-limit": "0"}, [download])
             except Exception as e:
                 LOGGER.error(
                     f"{e} You are not able to seed because you added global option seed-time=0 without adding specific seed_time for this torrent GID: {gid}"
@@ -198,9 +195,7 @@ async def __onBtDownloadComplete(api, gid):
             else:
                 async with download_dict_lock:
                     if listener.uid not in download_dict:
-                        await sync_to_async(
-                            api.remove, [download], force=True, files=True
-                        )
+                        await sync_to_async(api.remove, [download], force=True, files=True)
                         return
                     download_dict[listener.uid] = Aria2Status(gid, listener, True)
                     download_dict[listener.uid].start_time = seed_start_time
