@@ -13,6 +13,7 @@ from bot import (
     queue_dict_lock,
 )
 from bot.helper.ext_utils.bot_utils import bt_selection_buttons, sync_to_async
+from bot.helper.ext_utils.proxy import next_requests_proxies
 from bot.helper.ext_utils.task_manager import is_queued
 from bot.helper.mirror_utils.status_utils.aria2_status import Aria2Status
 from bot.helper.telegram_helper.message_utils import sendMessage, sendStatusMessage
@@ -30,6 +31,13 @@ async def add_aria2c_download(link, path, listener, filename, header, ratio, see
         a2c_opt["seed-ratio"] = ratio
     if seed_time:
         a2c_opt["seed-time"] = seed_time
+    # Configure proxy for aria2 if available
+    proxies = next_requests_proxies()
+    if proxies and proxies.get("http"):
+        # aria2 expects scheme://host:port (auth supported)
+        a2c_opt["all-proxy"] = proxies["http"]
+        a2c_opt["all-proxy-user"] = ""
+        a2c_opt["all-proxy-passwd"] = ""
     if TORRENT_TIMEOUT := config_dict["TORRENT_TIMEOUT"]:
         a2c_opt["bt-stop-timeout"] = f"{TORRENT_TIMEOUT}"
     added_to_queue, event = await is_queued(listener.uid)

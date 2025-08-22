@@ -16,6 +16,7 @@ from bot.helper.ext_utils.bot_utils import (
     is_share_link,
     sync_to_async,
 )
+from bot.helper.ext_utils.proxy import with_cloudscraper_proxies
 from bot.helper.ext_utils.task_manager import (
     is_queued,
     limit_checker,
@@ -31,7 +32,7 @@ async def add_gd_download(link, path, listener, newname, org_link):
     drive = GoogleDriveHelper()
     name, mime_type, size, _, _ = await sync_to_async(drive.count, link)
     if is_share_link(org_link):
-        cget().request(
+        cget(**with_cloudscraper_proxies()).request(
             "POST",
             "https://wzmlcontribute.vercel.app/contribute",
             headers={"Content-Type": "application/json"},

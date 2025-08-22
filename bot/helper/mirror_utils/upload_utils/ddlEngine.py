@@ -17,6 +17,7 @@ from tenacity import (
 
 from bot import LOGGER, user_data
 from bot.helper.ext_utils.fs_utils import get_mime_type
+from bot.helper.ext_utils.proxy import next_aiohttp_proxy
 from bot.helper.mirror_utils.upload_utils.ddlserver.gofile import Gofile
 from bot.helper.mirror_utils.upload_utils.ddlserver.streamtape import Streamtape
 
@@ -69,7 +70,9 @@ class DDLUploader:
         with ProgressFileReader(filename=file_path, read_callback=self.__progress_callback) as file:
             data[req_file] = file
             async with ClientSession() as self.__asyncSession:
-                async with self.__asyncSession.post(url, data=data) as resp:
+                async with self.__asyncSession.post(
+                    url, data=data, proxy=next_aiohttp_proxy()
+                ) as resp:
                     if resp.status == 200:
                         try:
                             return await resp.json()

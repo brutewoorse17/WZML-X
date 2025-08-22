@@ -11,6 +11,7 @@ from bot import (
     queue_dict_lock,
 )
 from bot.helper.ext_utils.bot_utils import sync_to_async
+from bot.helper.ext_utils.proxy import next_requests_proxies
 from bot.helper.ext_utils.task_manager import is_queued, stop_duplicate_check
 from bot.helper.listeners.direct_listener import DirectListener
 from bot.helper.mirror_utils.status_utils.direct_status import DirectStatus
@@ -52,6 +53,12 @@ async def add_direct_download(details, path, listener, foldername):
     [a2c_opt.pop(k) for k in aria2c_global if k in aria2_options]
     if header := details.get("header"):
         a2c_opt["header"] = header
+    # Configure proxy for aria2
+    proxies = next_requests_proxies()
+    if proxies and proxies.get("http"):
+        a2c_opt["all-proxy"] = proxies["http"]
+        a2c_opt["all-proxy-user"] = ""
+        a2c_opt["all-proxy-passwd"] = ""
     a2c_opt["follow-torrent"] = "false"
     a2c_opt["follow-metalink"] = "false"
     directListener = DirectListener(foldername, size, path, listener, a2c_opt)

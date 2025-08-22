@@ -7,6 +7,7 @@ from aiofiles.os import path as aiopath, rename as aiorename
 from aiohttp import ClientSession
 
 from bot.helper.ext_utils.bot_utils import sync_to_async
+from bot.helper.ext_utils.proxy import next_aiohttp_proxy
 
 
 class Gofile:
@@ -21,12 +22,15 @@ class Gofile:
             return False
 
         async with ClientSession() as session:
-            async with session.get(f"https://api.gofile.io/accounts/getid?token={token}") as resp:
+            async with session.get(
+                f"https://api.gofile.io/accounts/getid?token={token}", proxy=next_aiohttp_proxy()
+            ) as resp:
                 res = await resp.json()
                 if res["status"] == "ok":
                     acc_id = res["data"]["id"]
                     async with session.get(
-                        f"https://api.gofile.io/accounts/{acc_id}?token={token}"
+                        f"https://api.gofile.io/accounts/{acc_id}?token={token}",
+                        proxy=next_aiohttp_proxy(),
                     ) as resp:
                         return (await resp.json())["status"] == "ok"
         return False
@@ -42,7 +46,7 @@ class Gofile:
 
     async def __getServer(self):
         async with ClientSession() as session:
-            async with session.get(f"{self.api_url}servers") as resp:
+            async with session.get(f"{self.api_url}servers", proxy=next_aiohttp_proxy()) as resp:
                 return await self.__resp_handler(await resp.json())
 
     async def __getAccount(self, check_account=False):
@@ -50,12 +54,15 @@ class Gofile:
             raise Exception
 
         async with ClientSession() as session:
-            async with session.get(f"{self.api_url}accounts/getid?token={self.token}") as resp:
+            async with session.get(
+                f"{self.api_url}accounts/getid?token={self.token}", proxy=next_aiohttp_proxy()
+            ) as resp:
                 res = await resp.json()
                 if res["status"] == "ok":
                     acc_id = res["data"]["id"]
                     async with session.get(
-                        f"{self.api_url}accounts/{acc_id}?token={self.token}"
+                        f"{self.api_url}accounts/{acc_id}?token={self.token}",
+                        proxy=next_aiohttp_proxy(),
                     ) as resp2:
                         res2 = await resp2.json()
                         return (
@@ -159,6 +166,7 @@ class Gofile:
                     "parentFolderId": parentFolderId,
                     "folderName": folderName,
                 },
+                proxy=next_aiohttp_proxy(),
             ) as resp:
                 return await self.__resp_handler(await resp.json())
 
@@ -183,6 +191,7 @@ class Gofile:
                     "attribute": option,
                     "attributeValue": value,
                 },
+                proxy=next_aiohttp_proxy(),
             ) as resp:
                 return await self.__resp_handler(await resp.json())
 
@@ -192,7 +201,8 @@ class Gofile:
 
         async with ClientSession() as session:
             async with session.get(
-                url=f"{self.api_url}contents/{contentId}&token={self.token}&cache=true"
+                url=f"{self.api_url}contents/{contentId}&token={self.token}&cache=true",
+                proxy=next_aiohttp_proxy(),
             ) as resp:
                 return await self.__resp_handler(await resp.json())
 
@@ -208,6 +218,7 @@ class Gofile:
                     "contentsId": contentsId,
                     "folderId": folderIdDest,
                 },
+                proxy=next_aiohttp_proxy(),
             ) as resp:
                 return await self.__resp_handler(await resp.json())
 
@@ -218,6 +229,6 @@ class Gofile:
         async with ClientSession() as session:
             async with session.delete(
                 url=f"{self.api_url}contents/{contentId}",
-                data={"token": self.token},
+                proxy=next_aiohttp_proxy(),
             ) as resp:
                 return await self.__resp_handler(await resp.json())

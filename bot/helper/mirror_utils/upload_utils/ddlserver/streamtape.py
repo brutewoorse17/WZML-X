@@ -5,6 +5,7 @@ from aiofiles.os import path as aiopath, scandir
 from aiohttp import ClientSession
 
 from bot import config_dict
+from bot.helper.ext_utils.proxy import next_aiohttp_proxy
 from bot.helper.ext_utils.telegraph_helper import telegraph
 
 ALLOWED_EXTS = [
@@ -38,7 +39,8 @@ class Streamtape:
 
     async def __getAccInfo(self):
         async with ClientSession() as session, session.get(
-            f"{self.base_url}/account/info?login={self.__userLogin}&key={self.__passKey}"
+            f"{self.base_url}/account/info?login={self.__userLogin}&key={self.__passKey}",
+            proxy=next_aiohttp_proxy(),
         ) as response:
             if response.status == 200:
                 if (data := await response.json()) and data["status"] == 200:
@@ -54,7 +56,7 @@ class Streamtape:
         if httponly:
             _url += "&httponly=true"
         async with ClientSession() as session:
-            async with session.get(_url) as response:
+            async with session.get(_url, proxy=next_aiohttp_proxy()) as response:
                 if response.status == 200:
                     data = await response.json()
                     if (data := await response.json()) and data["status"] == 200:
@@ -99,7 +101,9 @@ class Streamtape:
         url = f"{self.base_url}/file/createfolder?login={self.__userLogin}&key={self.__passKey}&name={name}"
         if parent is not None:
             url += f"&pid={parent}"
-        async with ClientSession() as session, session.get(url) as response:
+        async with ClientSession() as session, session.get(
+            url, proxy=next_aiohttp_proxy()
+        ) as response:
             if response.status == 200:
                 data = await response.json()
                 if data.get("status") == 200:
@@ -108,7 +112,9 @@ class Streamtape:
 
     async def rename(self, file_id, name):
         url = f"{self.base_url}/file/rename?login={self.__userLogin}&key={self.__passKey}&file={file_id}&name={name}"
-        async with ClientSession() as session, session.get(url) as response:
+        async with ClientSession() as session, session.get(
+            url, proxy=next_aiohttp_proxy()
+        ) as response:
             if response.status == 200:
                 data = await response.json()
                 if data.get("status") == 200:
@@ -135,7 +141,9 @@ class Streamtape:
         url = f"{self.base_url}/file/listfolder?login={self.__userLogin}&key={self.__passKey}"
         if folder is not None:
             url += f"&folder={folder}"
-        async with ClientSession() as session, session.get(url) as response:
+        async with ClientSession() as session, session.get(
+            url, proxy=next_aiohttp_proxy()
+        ) as response:
             if response.status == 200:
                 if (data := await response.json()) and data["status"] == 200:
                     return data["result"]

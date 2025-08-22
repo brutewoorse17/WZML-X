@@ -17,6 +17,7 @@ from bot.helper.ext_utils.bot_utils import new_thread
 from bot.helper.ext_utils.db_handler import DbManger
 from bot.helper.ext_utils.exceptions import RssShutdownException
 from bot.helper.ext_utils.help_messages import RSS_HELP_MESSAGE
+from bot.helper.ext_utils.proxy import next_aiohttp_proxy
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.filters import CustomFilters
@@ -122,7 +123,7 @@ async def rssSub(client, message, pre_event):
             cmd = None
         try:
             async with ClientSession(trust_env=True) as session:
-                async with session.get(feed_link) as res:
+                async with session.get(feed_link, proxy=next_aiohttp_proxy()) as res:
                     html = await res.text()
             rss_d = feedparse(html)
             last_title = rss_d.entries[0]["title"]
@@ -304,7 +305,7 @@ async def rssGet(client, message, pre_event):
                     message, f"Getting the last <b>{count}</b> item(s) from {title}"
                 )
                 async with ClientSession(trust_env=True) as session:
-                    async with session.get(data["link"]) as res:
+                    async with session.get(data["link"], proxy=next_aiohttp_proxy()) as res:
                         html = await res.text()
                 rss_d = feedparse(html)
                 item_info = ""
@@ -620,7 +621,7 @@ async def rssMonitor():
                 if data["paused"]:
                     continue
                 async with ClientSession(trust_env=True) as session:
-                    async with session.get(data["link"]) as res:
+                    async with session.get(data["link"], proxy=next_aiohttp_proxy()) as res:
                         html = await res.text()
                 rss_d = feedparse(html)
                 try:

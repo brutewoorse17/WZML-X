@@ -3,6 +3,7 @@ from asyncio.subprocess import PIPE
 from configparser import ConfigParser
 from json import loads
 from logging import getLogger
+from os import environ
 from random import randrange
 from re import findall as re_findall
 
@@ -12,6 +13,7 @@ from aiofiles.os import listdir, mkdir, path as aiopath
 from bot import GLOBAL_EXTENSION_FILTER, config_dict
 from bot.helper.ext_utils.bot_utils import cmd_exec, sync_to_async
 from bot.helper.ext_utils.fs_utils import count_files_and_folders, get_mime_type
+from bot.helper.ext_utils.proxy import next_requests_proxies
 
 LOGGER = getLogger(__name__)
 
@@ -109,7 +111,14 @@ class RcloneTransferHelper:
         return sa_conf_file
 
     async def __start_download(self, cmd, remote_type):
-        self.__proc = await create_subprocess_exec(*cmd, stdout=PIPE, stderr=PIPE)
+        env = None
+        proxies = next_requests_proxies()
+        if proxies and proxies.get("http"):
+            env = {**environ}
+            env["HTTP_PROXY"] = proxies["http"]
+            env["HTTPS_PROXY"] = proxies["http"]
+            env["NO_PROXY"] = environ.get("NO_PROXY", "")
+        self.__proc = await create_subprocess_exec(*cmd, stdout=PIPE, stderr=PIPE, env=env)
         _, return_code = await gather(self.__progress(), self.__proc.wait())
 
         if self.__is_cancelled:
@@ -218,7 +227,14 @@ class RcloneTransferHelper:
         return link, destination
 
     async def __start_upload(self, cmd, remote_type):
-        self.__proc = await create_subprocess_exec(*cmd, stdout=PIPE, stderr=PIPE)
+        env = None
+        proxies = next_requests_proxies()
+        if proxies and proxies.get("http"):
+            env = {**environ}
+            env["HTTP_PROXY"] = proxies["http"]
+            env["HTTPS_PROXY"] = proxies["http"]
+            env["NO_PROXY"] = environ.get("NO_PROXY", "")
+        self.__proc = await create_subprocess_exec(*cmd, stdout=PIPE, stderr=PIPE, env=env)
         _, return_code = await gather(self.__progress(), self.__proc.wait())
 
         if self.__is_cancelled:
