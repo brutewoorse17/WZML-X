@@ -158,6 +158,10 @@ TIMEZONE = environ.get("TIMEZONE", "")
 if len(TIMEZONE) == 0:
     TIMEZONE = "Asia/Kolkata"
 
+# Proxies
+PROXIES = environ.get("PROXIES", "")
+PROXY_ROTATE_MODE = environ.get("PROXY_ROTATE_MODE", "off").lower()
+
 
 def changetz(*args):
     return datetime.now(timezone(TIMEZONE)).timetuple()
@@ -739,6 +743,8 @@ config_dict = {
     "USE_SERVICE_ACCOUNTS": USE_SERVICE_ACCOUNTS,
     "WEB_PINCODE": WEB_PINCODE,
     "YT_DLP_OPTIONS": YT_DLP_OPTIONS,
+    "PROXIES": PROXIES,
+    "PROXY_ROTATE_MODE": PROXY_ROTATE_MODE,
 }
 
 if GDRIVE_ID:

@@ -41,6 +41,7 @@ from bot.helper.ext_utils.help_messages import (
     YT_HELP_MESSAGE,
     help_string,
 )
+from bot.helper.ext_utils.proxy import with_cloudscraper_proxies
 from bot.helper.ext_utils.task_manager import task_utils
 from bot.helper.listeners.tasks_listener import MirrorLeechListener
 from bot.helper.mirror_utils.download_utils.aria2_download import add_aria2c_download
@@ -539,7 +540,7 @@ async def wzmlxcb(_, query):
         await query.answer()
         async with aiopen("log.txt") as f:
             logFile = await f.read()
-        cget = create_scraper().request
+        cget = create_scraper(**with_cloudscraper_proxies()).request
         resp = cget(
             "POST",
             "https://spaceb.in/api/v1/documents",

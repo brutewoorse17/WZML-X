@@ -30,6 +30,7 @@ from bot.helper.ext_utils.bot_utils import (
 )
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 from bot.helper.ext_utils.help_messages import CLONE_HELP_MESSAGE
+from bot.helper.ext_utils.proxy import with_cloudscraper_proxies
 from bot.helper.ext_utils.task_manager import limit_checker, task_utils
 from bot.helper.listeners.tasks_listener import MirrorLeechListener
 from bot.helper.mirror_utils.download_utils.direct_link_generator import (
@@ -204,7 +205,7 @@ async def gdcloneNode(message, link, listen_up):
         gd = GoogleDriveHelper()
         name, mime_type, size, files, _ = await sync_to_async(gd.count, link)
         if org_link:
-            cget().request(
+            cget(**with_cloudscraper_proxies()).request(
                 "POST",
                 "https://wzmlcontribute.vercel.app/contribute",
                 headers={"Content-Type": "application/json"},

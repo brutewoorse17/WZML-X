@@ -24,6 +24,7 @@ from bot.helper.ext_utils.bot_utils import (
 )
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 from bot.helper.ext_utils.help_messages import PASSWORD_ERROR_MESSAGE
+from bot.helper.ext_utils.proxy import with_cloudscraper_proxies
 
 _caches = {}
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0"
@@ -704,7 +705,7 @@ def real_debrid(url: str, tor=False):
     Based on Real-Debrid v1 API (Heroku/VPS) [Without VPN]"""
 
     def __unrestrict(url, tor=False):
-        cget = create_scraper().request
+        cget = create_scraper(**with_cloudscraper_proxies()).request
         resp = cget(
             "POST",
             f"https://api.real-debrid.com/rest/1.0/unrestrict/link?auth_token={config_dict['REAL_DEBRID_API']}",
@@ -720,7 +721,7 @@ def real_debrid(url: str, tor=False):
             raise DirectDownloadLinkException(f"ERROR: {resp.json()['error']}")
 
     def __addMagnet(magnet):
-        cget = create_scraper().request
+        cget = create_scraper(**with_cloudscraper_proxies()).request
         hash_ = search(r"(?<=xt=urn:btih:)[a-zA-Z0-9]+", magnet).group(0)
         resp = cget(
             "GET",
@@ -787,7 +788,7 @@ def real_debrid(url: str, tor=False):
 
 
 def debrid_link(url):
-    cget = create_scraper().request
+    cget = create_scraper(**with_cloudscraper_proxies()).request
     resp = cget(
         "POST",
         f"https://debrid-link.com/api/v2/downloader/add?access_token={config_dict['DEBRID_LINK_API']}",
@@ -857,7 +858,7 @@ def mediafire(url, session=None):
 
 
 def osdn(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             html = HTML(session.get(url).text)
         except Exception as e:
@@ -872,7 +873,7 @@ def github(url):
         findall(r"\bhttps?://.*github\.com.*releases\S+", url)[0]
     except IndexError as e:
         raise DirectDownloadLinkException("No GitHub Releases links found") from e
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         _res = session.get(url, stream=True, allow_redirects=False)
         if "location" in _res.headers:
             return _res.headers["location"]
@@ -887,7 +888,7 @@ def hxfile(url):
 
 
 def letsupload(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             res = session.post(url)
         except Exception as e:
@@ -899,7 +900,7 @@ def letsupload(url):
 
 
 def anonfilesBased(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             html = HTML(session.get(url).text)
         except Exception as e:
@@ -933,7 +934,7 @@ def sbembed(link):
 
 
 def onedrive(link):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             link = session.get(link).url
             parsed_link = urlparse(link)
@@ -975,7 +976,7 @@ def pixeldrain(url):
     else:
         info_link = f"https://pixeldrain.com/api/file/{file_id}/info"
         dl_link = f"https://pixeldrain.com/api/file/{file_id}?download"
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             resp = session.get(info_link).json()
         except Exception as e:
@@ -1009,7 +1010,7 @@ def streamtape(url):
 
 
 def racaty(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             url = session.get(url).url
             json_data = {"op": "download2", "id": url.split("/")[-1]}
@@ -1033,7 +1034,7 @@ def fichier(link):
     else:
         pswd = None
         url = link
-    cget = create_scraper().request
+    cget = create_scraper(**with_cloudscraper_proxies()).request
     try:
         if pswd is None:
             req = cget("post", url)
@@ -1086,7 +1087,7 @@ def fichier(link):
 
 
 def solidfiles(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             headers = {
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.125 Safari/537.36"
@@ -1125,7 +1126,7 @@ def krakenfiles(url):
 
 
 def uploadee(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             html = HTML(session.get(url).text)
         except Exception as e:
@@ -1325,7 +1326,7 @@ def gd_index(url, auth):
     details = {"contents": [], "title": unquote(_title), "total_size": 0}
 
     def __fetch_links(url, folderPath, username, password):
-        with create_scraper() as session:
+        with create_scraper(**with_cloudscraper_proxies()) as session:
             payload = {
                 "id": "",
                 "type": "folder",
@@ -1369,7 +1370,7 @@ def gd_index(url, auth):
 
 
 def filepress(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             url = session.get(url).url
             raw = urlparse(url)
@@ -1391,7 +1392,7 @@ def filepress(url):
 
 
 def jiodrive(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             url = session.get(url).url
             cookies = {"access_token": config_dict["JIODRIVE_TOKEN"]}
@@ -1414,7 +1415,7 @@ def jiodrive(url):
 
 
 def gdtot(url):
-    cget = create_scraper().request
+    cget = create_scraper(**with_cloudscraper_proxies()).request
     try:
         res = cget("GET", f'https://gdtot.pro/file/{url.split("/")[-1]}')
     except Exception as e:
@@ -1472,7 +1473,7 @@ def gdtot(url):
 
 
 def sharer_scraper(url):
-    cget = create_scraper().request
+    cget = create_scraper(**with_cloudscraper_proxies()).request
     try:
         url = cget("GET", url).url
         raw = urlparse(url)
@@ -1522,7 +1523,7 @@ def sharer_scraper(url):
 
 
 def wetransfer(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             url = session.get(url).url
             splited_url = url.split("/")
@@ -1544,7 +1545,7 @@ def wetransfer(url):
 
 
 def akmfiles(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             url = session.get(url).url
             json_data = {"op": "download2", "id": url.split("/")[-1]}
@@ -1558,7 +1559,7 @@ def akmfiles(url):
 
 
 def shrdsk(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             url = session.get(url).url
             res = session.get(
@@ -1575,7 +1576,7 @@ def shrdsk(url):
 
 
 def linkbox(url):
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             url = session.get(url).url
             res = session.get(
@@ -1626,6 +1627,7 @@ def mediafireFolder(url):
         browser={"browser": "firefox", "platform": "windows", "mobile": False},
         delay=10,
         sess=session,
+        **with_cloudscraper_proxies(),
     )
     folder_infos = []
 
@@ -1729,7 +1731,7 @@ def doods(url):
     if "/e/" in url:
         url = url.replace("/e/", "/d/")
     parsed_url = urlparse(url)
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             html = HTML(session.get(url).text)
         except Exception as e:
@@ -1760,7 +1762,7 @@ def easyupload(url):
     else:
         _password = ""
     file_id = url.split("/")[-1]
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             _res = session.get(url)
         except Exception as e:
@@ -1856,7 +1858,7 @@ def streamvid(url: str):
     parsed_url = urlparse(url)
     url = f"{parsed_url.scheme}://{parsed_url.hostname}/d/{file_code}"
     quality_defined = bool(url.endswith(("_o", "_h", "_n", "_l")))
-    with create_scraper() as session:
+    with create_scraper(**with_cloudscraper_proxies()) as session:
         try:
             html = HTML(session.get(url).text)
         except Exception as e:

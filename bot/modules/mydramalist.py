@@ -13,6 +13,7 @@ from pyrogram.filters import command, regex
 from pyrogram.handlers import CallbackQueryHandler, MessageHandler
 
 from bot import bot, config_dict
+from bot.helper.ext_utils.proxy import next_aiohttp_proxy
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.filters import CustomFilters
@@ -59,7 +60,9 @@ async def mydramalist_search(_, message):
         user_id = message.from_user.id
         buttons = ButtonMaker()
         async with ClientSession() as sess:
-            async with sess.get(f"{MDL_API}/search/q/{q(title)}") as resp:
+            async with sess.get(
+                f"{MDL_API}/search/q/{q(title)}", proxy=next_aiohttp_proxy()
+            ) as resp:
                 if resp.status != 200:
                     return await editMessage(
                         temp,
@@ -84,7 +87,7 @@ async def mydramalist_search(_, message):
 
 async def extract_MDL(slug):
     async with ClientSession() as sess:
-        async with sess.get(f"{MDL_API}/id/{slug}") as resp:
+        async with sess.get(f"{MDL_API}/id/{slug}", proxy=next_aiohttp_proxy()) as resp:
             mdl = (await resp.json())["data"]
     plot = mdl.get("synopsis")
     if plot and len(plot) > 300:

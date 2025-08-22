@@ -7,6 +7,7 @@ from cloudscraper import create_scraper
 from urllib3 import disable_warnings
 
 from bot import LOGGER, shorteners_list
+from bot.helper.ext_utils.proxy import with_cloudscraper_proxies
 
 
 def short_url(longurl, attempt=0):
@@ -18,7 +19,7 @@ def short_url(longurl, attempt=0):
     _shorten_dict = shorteners_list[i]
     _shortener = _shorten_dict["domain"]
     _shortener_api = _shorten_dict["api_key"]
-    cget = create_scraper().request
+    cget = create_scraper(**with_cloudscraper_proxies()).request
     disable_warnings()
     try:
         if "shorte.st" in _shortener:
