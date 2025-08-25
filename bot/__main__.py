@@ -89,6 +89,9 @@ from .modules import (
     auto_download,
     auto_download_settings,
     auto_download_integration,
+    nsfw_settings,
+    nsfw_integration,
+    nsfw_reporting,
 )
 
 

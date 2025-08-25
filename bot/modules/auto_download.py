@@ -18,6 +18,11 @@ from bot.helper.ext_utils.url_auto_detector import (
     should_auto_download,
     get_url_info
 )
+from bot.modules.nsfw_integration import (
+    check_nsfw_before_download,
+    scan_message_nsfw,
+    handle_nsfw_in_message
+)
 from bot.helper.telegram_helper.message_utils import sendMessage, deleteMessage, editMessage
 from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.button_build import ButtonMaker
@@ -41,10 +46,42 @@ class AutoDownloadManager:
             
             user_id = message.from_user.id
             
+            # First, scan message for NSFW content
+            nsfw_scan_results = await scan_message_nsfw(message)
+            
+            # Handle NSFW content in message
+            if nsfw_scan_results:
+                await handle_nsfw_in_message(message, nsfw_scan_results)
+            
             # Filter URLs that should be auto-downloaded
             downloadable_urls = []
             for url, metadata in urls:
                 if url not in self.processing_urls:
+                    # Check NSFW before processing
+                    nsfw_check = await check_nsfw_before_download(
+                        url, user_id, 
+                        message.text or message.caption or ""
+                    )
+                    
+                    if nsfw_check['blocked']:
+                        # Handle blocked NSFW content
+                        if nsfw_check['message']:
+                            await sendMessage(
+                                message, 
+                                nsfw_check['message'], 
+                                nsfw_check['buttons'].build_menu(1) if nsfw_check['buttons'] else None
+                            )
+                        continue
+                    
+                    # Show NSFW warning if needed
+                    if nsfw_check['action'] == 'warn' and nsfw_check['message']:
+                        await sendMessage(
+                            message,
+                            nsfw_check['message'],
+                            nsfw_check['buttons'].build_menu(1) if nsfw_check['buttons'] else None
+                        )
+                    
+                    # Continue with normal processing for allowed URLs
                     if should_auto_download(url, user_id):
                         downloadable_urls.append((url, metadata))
                     elif self.should_prompt_user(url, metadata, user_id):

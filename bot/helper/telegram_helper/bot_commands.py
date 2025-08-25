@@ -89,6 +89,7 @@ class _BotCommands:
         self.GDCleanCommand = [f"gdclean{CMD_SUFFIX}", f"gc{CMD_SUFFIX}"]
         self.BroadcastCommand = [f"broadcast{CMD_SUFFIX}", f"bc{CMD_SUFFIX}"]
         self.AutoDownloadCommand = [f"autodownload{CMD_SUFFIX}", f"ad{CMD_SUFFIX}"]
+        self.NSFWFilterCommand = f"nsfwfilter{CMD_SUFFIX}"
 
 
 BotCommands = _BotCommands()
