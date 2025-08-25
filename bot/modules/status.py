@@ -88,7 +88,7 @@ async def status_pages(_, query):
             query.message,
             f"{(await user_info(user_id)).mention(style='html')}, <i>Refreshing Status...</i>",
         )
-        await sleep(1.5)
+        await sleep(0.5)  # Reduced sleep time for better responsiveness
         await update_all_messages(True)
     elif data[1] in ["nex", "pre"]:
         await turn_page(data)

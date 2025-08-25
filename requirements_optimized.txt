@@ -1,0 +1,91 @@
+# Optimized requirements.txt for better performance and smaller bundle size
+
+# Core async libraries with performance optimizations
+aiohttp[speedups]==3.9.1  # Pin version for stability, include speedups
+aiofiles==23.2.0
+aioshutil==1.3
+
+# Essential libraries - pinned versions for stability
+anytree==2.8.0
+apscheduler==3.10.4
+aria2p==0.11.3
+asyncio  # Built-in, but explicit for clarity
+
+# Web scraping - optimized
+beautifulsoup4==4.12.2
+cloudscraper==1.2.71
+lxml==4.9.3  # Faster XML/HTML parsing than default
+
+# Media and content processing
+cinemagoer==2023.5.1
+feedparser==6.0.10
+mutagen==1.47.0
+pillow==10.1.0  # Image processing
+
+# Cryptography and security
+cryptography==41.0.7
+tgcrypto==1.2.5
+
+# Network and HTTP
+dnspython==2.4.2
+httpx==0.25.2
+requests==2.31.0
+
+# Web framework
+flask==3.0.0
+gevent==23.9.1  # For better web server performance
+gunicorn==21.2.0
+
+# Google API
+google-api-python-client==2.108.0
+google-auth-httplib2==0.1.1
+google-auth-oauthlib==1.1.0
+
+# External service integration
+git+https://github.com/zevtyardt/lk21.git
+
+# Language and localization
+langcodes[data]==3.3.0
+pycountry==22.3.5
+
+# Database
+motor==3.3.2  # Async MongoDB driver
+pymongo==4.6.0
+
+# Telegram
+pyrofork==2.2.11
+
+# Configuration and environment
+python-dotenv==1.0.0
+
+# File operations and utilities
+python-magic==0.4.27
+natsort==8.4.0
+pybase64==1.3.2
+xattr==0.10.1
+
+# BitTorrent
+qbittorrent-api==2023.10.57
+
+# System monitoring
+psutil==5.9.6
+
+# CLI tools
+speedtest-cli==2.1.3
+
+# Publishing and messaging
+telegraph==2.2.0
+markdown==3.5.1
+
+# Retry and reliability
+tenacity==8.2.3
+
+# Package management and performance
+uv==0.1.11  # Fast Python package installer
+uvloop==0.19.0  # Fast asyncio event loop
+
+# Media downloading
+yt-dlp[default]==2023.11.16  # Removed curl-cffi to reduce size
+
+# Timezone handling
+pytz==2023.3

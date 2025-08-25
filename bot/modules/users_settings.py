@@ -867,7 +867,7 @@ async def event_handler(client, query, pfunc, rfunc, photo=False, document=False
         MessageHandler(pfunc, filters=create(event_filter)), group=-1
     )
     while handler_dict[user_id]:
-        await sleep(0.5)
+        await sleep(0.2)  # Reduced sleep time for better UI responsiveness
         if time() - start_time > 60:
             handler_dict[user_id] = False
             await rfunc()
