@@ -164,11 +164,16 @@ async def init_auto_download_system():
     await auto_download_integration.initialize()
 
 # Schedule initialization
-if bot_loop and bot_loop.is_running():
+def _safe_start_autodl():
     try:
         loop = asyncio.get_running_loop()
         loop.create_task(init_auto_download_system())
     except RuntimeError:
-        asyncio.run(init_auto_download_system())
+        # No loop yet, so create one in the background
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.create_task(init_auto_download_system())
+
+_safe_start_autodl()
 
 LOGGER.info("Auto-Download Integration module loaded successfully!")
