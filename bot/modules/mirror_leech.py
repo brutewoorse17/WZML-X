@@ -330,6 +330,42 @@ async def _mirror_leech(
     if link:
         LOGGER.info(link)
         org_link = link
+        
+        # NSFW Content Check
+        try:
+            from bot.modules.nsfw_integration import check_nsfw_before_download
+            
+            user_id = message.from_user.id
+            nsfw_check = await check_nsfw_before_download(
+                link, user_id, 
+                message.text or message.caption or ""
+            )
+            
+            if nsfw_check['blocked']:
+                # Send NSFW block message
+                if nsfw_check['message']:
+                    await sendMessage(
+                        message, 
+                        nsfw_check['message'], 
+                        nsfw_check['buttons'].build_menu(1) if nsfw_check['buttons'] else None
+                    )
+                await delete_links(message)
+                return
+            
+            # Show NSFW warning if needed but allow download
+            if nsfw_check['action'] == 'warn' and nsfw_check['message']:
+                await sendMessage(
+                    message,
+                    nsfw_check['message'],
+                    nsfw_check['buttons'].build_menu(1) if nsfw_check['buttons'] else None
+                )
+                
+        except ImportError:
+            # NSFW module not available, continue normally
+            pass
+        except Exception as e:
+            LOGGER.error(f"Error checking NSFW content: {str(e)}")
+            # Continue with download on error to avoid blocking legitimate content
 
     if (
         (

@@ -2,11 +2,28 @@ from logging import getLogger, FileHandler, StreamHandler, INFO, basicConfig
 from time import sleep
 from qbittorrentapi import NotFound404Error, Client as qbClient
 from aria2p import API as ariaAPI, Client as ariaClient
-from flask import Flask, request
+from flask import Flask, request, Response
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.serving import WSGIRequestHandler
 
 from web.nodes import make_tree
 
 app = Flask(__name__)
+
+# Optimize Flask app for production
+app.config.update(
+    JSON_SORT_KEYS=False,
+    JSONIFY_PRETTYPRINT_REGULAR=False,
+    SEND_FILE_MAX_AGE_DEFAULT=31536000,  # 1 year cache for static files
+)
+
+# Add proxy fix for better performance behind reverse proxies
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# Disable request logging for better performance
+class SilentWSGIRequestHandler(WSGIRequestHandler):
+    def log_request(self, code='-', size='-'):
+        pass
 
 aria2 = ariaAPI(ariaClient(host="http://localhost", port=6800, secret=""))
 

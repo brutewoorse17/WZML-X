@@ -19,21 +19,47 @@ from bot import (
 
 
 class DbManger:
-    def __init__(self):
-        self.__err = False
-        self.__db = None
-        self.__conn = None
-        self.__connect()
+    _instance = None
+    _conn = None
+    _db = None
+    _err = False
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.__connect()
+        return cls._instance
 
     def __connect(self):
-        try:
-            self.__conn = AsyncIOMotorClient(DATABASE_URL)
-            self.__db = (
-                self.__conn.wzmlx
-            )  # New Section for not conflicting with mltb section !!
-        except PyMongoError as e:
-            LOGGER.error(f"Error in DB connection: {e}")
-            self.__err = True
+        if self._conn is None:
+            try:
+                # Optimize connection with connection pooling and timeouts
+                self._conn = AsyncIOMotorClient(
+                    DATABASE_URL,
+                    maxPoolSize=50,  # Connection pool size
+                    minPoolSize=5,   # Minimum connections
+                    maxIdleTimeMS=30000,  # Close idle connections after 30s
+                    waitQueueTimeoutMS=5000,  # Timeout for getting connection
+                    serverSelectionTimeoutMS=5000,  # Server selection timeout
+                    connectTimeoutMS=10000,  # Connection timeout
+                    socketTimeoutMS=20000,  # Socket timeout
+                )
+                self._db = self._conn.wzmlx
+            except PyMongoError as e:
+                LOGGER.error(f"Error in DB connection: {e}")
+                self._err = True
+
+    @property
+    def __err(self):
+        return self._err
+    
+    @property
+    def __db(self):
+        return self._db
+    
+    @property
+    def __conn(self):
+        return self._conn
 
     async def db_load(self):
         if self.__err:

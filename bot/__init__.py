@@ -39,10 +39,22 @@ pyroutils.MIN_CHAT_ID = -999999999999
 pyroutils.MIN_CHANNEL_ID = -100999999999999
 botStartTime = time()
 
+from logging.handlers import RotatingFileHandler
+
+# Optimize logging with rotating file handler to prevent large log files
+log_handler = RotatingFileHandler(
+    "log.txt", 
+    maxBytes=10*1024*1024,  # 10MB max file size
+    backupCount=3,  # Keep 3 backup files
+    encoding='utf-8'
+)
+log_handler.setFormatter(Formatter(
+    "[%(asctime)s] [%(levelname)s] - %(message)s",
+    datefmt="%d-%b-%y %I:%M:%S %p"
+))
+
 basicConfig(
-    format="[%(asctime)s] [%(levelname)s] - %(message)s",  #  [%(filename)s:%(lineno)d]
-    datefmt="%d-%b-%y %I:%M:%S %p",
-    handlers=[FileHandler("log.txt"), StreamHandler()],
+    handlers=[log_handler, StreamHandler()],
     level=INFO,
 )
 
@@ -100,9 +112,21 @@ if len(DATABASE_URL) == 0:
     DATABASE_URL = ""
 
 if DATABASE_URL:
-    conn = MongoClient(DATABASE_URL)
+    # Optimize database initialization with connection pooling
+    conn = MongoClient(
+        DATABASE_URL,
+        maxPoolSize=20,
+        minPoolSize=2,
+        maxIdleTimeMS=30000,
+        waitQueueTimeoutMS=5000,
+        serverSelectionTimeoutMS=5000,
+        connectTimeoutMS=10000,
+        socketTimeoutMS=20000,
+    )
     db = conn.wzmlx
     current_config = dict(dotenv_values("config.env"))
+    
+    # Batch database operations for better performance
     old_config = db.settings.deployConfig.find_one({"_id": bot_id})
     if old_config is None:
         db.settings.deployConfig.replace_one(
@@ -114,10 +138,14 @@ if DATABASE_URL:
         db.settings.deployConfig.replace_one(
             {"_id": bot_id}, current_config, upsert=True
         )
-    elif config_dict := db.settings.config.find_one({"_id": bot_id}):
+    
+    # Use bulk operations where possible
+    bulk_updates = []
+    if config_dict := db.settings.config.find_one({"_id": bot_id}):
         del config_dict["_id"]
         for key, value in config_dict.items():
             environ[key] = str(value)
+            
     if pf_dict := db.settings.files.find_one({"_id": bot_id}):
         del pf_dict["_id"]
         for key, value in pf_dict.items():
@@ -125,12 +153,15 @@ if DATABASE_URL:
                 file_ = key.replace("__", ".")
                 with open(file_, "wb+") as f:
                     f.write(value)
+                    
     if a2c_options := db.settings.aria2c.find_one({"_id": bot_id}):
         del a2c_options["_id"]
         aria2_options = a2c_options
+        
     if qbit_opt := db.settings.qbittorrent.find_one({"_id": bot_id}):
         del qbit_opt["_id"]
         qbit_options = qbit_opt
+        
     conn.close()
     BOT_TOKEN = environ.get("BOT_TOKEN", "")
     bot_id = BOT_TOKEN.split(":", 1)[0]

@@ -31,7 +31,7 @@ from asyncio import (
     sleep,
 )
 from asyncio.subprocess import PIPE
-from functools import partial, wraps
+from functools import partial, wraps, lru_cache
 from concurrent.futures import ThreadPoolExecutor
 
 from aiohttp import ClientSession as aioClientSession
@@ -67,7 +67,13 @@ from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.ext_utils.telegraph_helper import telegraph
 from bot.helper.ext_utils.shortners import short_url
 
-THREADPOOL = ThreadPoolExecutor(max_workers=1000)
+# Optimize thread pool based on system resources
+import os
+cpu_count = os.cpu_count() or 4
+THREADPOOL = ThreadPoolExecutor(
+    max_workers=min(cpu_count * 4, 100),  # Reasonable limit based on CPU cores
+    thread_name_prefix="wzml_worker"
+)
 MAGNET_REGEX = r"magnet:\?xt=urn:(btih|btmh):[a-zA-Z0-9]*\s*"
 URL_REGEX = r"^(?!\/)(rtmps?:\/\/|mms:\/\/|rtsp:\/\/|https?:\/\/|ftp:\/\/)?([^\/:]+:[^\/@]+@)?(www\.)?(?=[^\/:\s]+\.[^\/:\s]+)([^\/:\s]+\.[^\/:\s]+)(:\d+)?(\/[^#\s]*[\s\S]*)?(\?[^#\s]*)?(#.*)?$"
 SIZE_UNITS = ["B", "KB", "MB", "GB", "TB", "PB", "EB"]

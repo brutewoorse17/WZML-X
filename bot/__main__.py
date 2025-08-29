@@ -86,6 +86,12 @@ from .modules import (
     gd_clean,
     broadcast,
     category_select,
+    auto_download,
+    auto_download_settings,
+    auto_download_integration,
+    nsfw_settings,
+    nsfw_integration,
+    nsfw_reporting,
 )
 
 
