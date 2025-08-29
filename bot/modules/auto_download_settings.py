@@ -301,17 +301,16 @@ async def show_main_settings_edit(query):
     
     # Build status text
     status_text = (
-        f"⚙️ <b>Auto-Download Settings</b>\n\n"
-        f"<b>Status:</b> {enabled_text}\n"
-        f"<b>Confirmation Prompts:</b> {prompt_text}\n"
-        f"<b>Allowed URL Types:</b> {len(settings['allowed_types'])}\n"
-        f"<b>Whitelisted Domains:</b> {len(settings['domain_whitelist'])}\n"
-        f"<b>Blacklisted Domains:</b> {len(settings['domain_blacklist'])}\n"
-        f"<b>Size Limit:</b> {'No limit' if settings['max_size_mb'] == 0 else f\"{settings['max_size_mb']} MB\"}\n"
-        f"<b>Auto-Extract:</b> {extract_text}\n"
-        f"<b>Auto-Compress:</b> {compress_text}\n"
-        f"<b>Notification Level:</b> {settings['notification_level'].title()}"
-    )
+    f"⚙️ <b>Auto-Download Settings</b>\n\n"
+    f"<b>Status:</b> {enabled_text}\n"
+    f"<b>Confirmation Prompts:</b> {prompt_text}\n"
+    f"<b>Allowed URL Types:</b> {len(settings['allowed_types'])}\n"
+    f"<b>Whitelisted Domains:</b> {len(settings['domain_whitelist'])}\n"
+    f"<b>Blacklisted Domains:</b> {len(settings['domain_blacklist'])}\n"
+    f"<b>Size Limit:</b> {'No limit' if settings['max_size_mb'] == 0 else str(settings['max_size_mb']) + ' MB'}\n"
+    f"<b>Auto-Extract:</b> {extract_text}\n"
+    f"<b>Auto-Compress:</b> {compress_text}\n"
+    f"<b>Notification Level:</b> {settings['notification_level'].title()}")
     
     await query.edit_message_text(status_text, reply_markup=btn.build_menu(2))
 
