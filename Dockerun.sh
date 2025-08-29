@@ -166,4 +166,4 @@ run_root docker build . -t mirror-bot
 
 # Run the image
 echo "Running Docker image 'mirror-bot'..."
-run_root docker run mirror-bot
+run_root docker run -p 80:80 -p 8080:8080 mirror-bot
