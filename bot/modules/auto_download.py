@@ -7,7 +7,7 @@ from user messages without requiring explicit commands.
 """
 
 
-Dict = dict()
+Dict = {}
 
 import asyncio
 from pyrogram import filters
