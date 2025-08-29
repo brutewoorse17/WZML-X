@@ -6,6 +6,9 @@ This module handles automatic detection and downloading of supported URLs
 from user messages without requiring explicit commands.
 """
 
+
+Dict = dict()
+
 import asyncio
 from pyrogram import filters
 from pyrogram.handlers import MessageHandler
