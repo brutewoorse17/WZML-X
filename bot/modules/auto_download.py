@@ -7,8 +7,8 @@ from user messages without requiring explicit commands.
 """
 
 
-Dict = {}
 
+from typing import Dict
 import asyncio
 from pyrogram import filters
 from pyrogram.handlers import MessageHandler
