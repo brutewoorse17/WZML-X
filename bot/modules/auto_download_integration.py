@@ -174,4 +174,3 @@ if bot_loop and bot_loop.is_running():
     asyncio.run(init_auto_download_system())
 
 LOGGER.info("Auto-Download Integration module loaded successfully!")
-LOGGER.info("Auto-Download Integration module loaded successfully!")
