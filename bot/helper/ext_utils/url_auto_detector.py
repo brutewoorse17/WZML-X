@@ -390,8 +390,9 @@ class URLAutoDetector:
             modified_message = message
             modified_message.text = f"/mirror {url}"
             
-            # Process the download
-            await _mirror_leech(message.client, modified_message, **kwargs)
+            # Process the download using global bot client
+            from bot import bot as tg_client
+            await _mirror_leech(tg_client, modified_message, **kwargs)
             
             LOGGER.info(f"Auto-download initiated for URL: {url}")
             return True
