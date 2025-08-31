@@ -207,8 +207,8 @@ class AutoDownloadManager:
             
             status_msg = await sendMessage(message, notification)
             
-            # Queue the download via integrated processor
-            success = await auto_download_integration.queue_download(url, message)
+            # Directly process the download without queueing
+            success = await url_detector.process_auto_download(url, message)
             
             if success:
                 await editMessage(status_msg, notification + "\n\n✅ <i>Download initiated successfully!</i>")
@@ -232,77 +232,7 @@ class AutoDownloadManager:
         except Exception:
             pass
 
-# =====================
-# Integration (merged, queue-based processor)
-# =====================
-
-class AutoDownloadIntegration:
-    def __init__(self):
-        self.download_queue = asyncio.Queue()
-        self.processing = False
-        self.stats = {
-            'total_detected': 0,
-            'auto_downloaded': 0,
-            'user_prompted': 0,
-            'failed': 0
-        }
-
-    async def initialize(self):
-        try:
-            if not self.processing:
-                asyncio.create_task(self._process_download_queue())
-                self.processing = True
-                LOGGER.info("✅ Auto-Download queue processor initialized")
-        except Exception as e:
-            LOGGER.error(f"❌ Failed to initialize Auto-Download processor: {str(e)}")
-
-    async def _process_download_queue(self):
-        while True:
-            try:
-                task = await self.download_queue.get()
-                url = task['url']
-                message = task['message']
-                options = task.get('options', {})
-
-                # Execute download using detector's processor
-                ok = await url_detector.process_auto_download(url, message, **options)
-                if ok:
-                    self.stats['auto_downloaded'] += 1
-                    LOGGER.info(f"✅ Auto-download executed for: {url}")
-                else:
-                    self.stats['failed'] += 1
-                    LOGGER.error(f"❌ Auto-download failed for: {url}")
-
-                self.download_queue.task_done()
-                await asyncio.sleep(1)
-            except Exception as e:
-                self.stats['failed'] += 1
-                LOGGER.error(f"Error processing auto-download queue: {str(e)}")
-                await asyncio.sleep(5)
-
-    async def queue_download(self, url: str, message: Message, **options) -> bool:
-        try:
-            if not self.processing:
-                await self.initialize()
-            await self.download_queue.put({'url': url, 'message': message, 'options': options})
-            LOGGER.info(f"Queued auto-download for: {url}")
-            return True
-        except Exception as e:
-            LOGGER.error(f"Failed to queue auto-download for {url}: {str(e)}")
-            return False
-
-    def get_stats(self) -> Dict[str, int]:
-        return self.stats.copy()
-
-    def reset_stats(self):
-        self.stats = {
-            'total_detected': 0,
-            'auto_downloaded': 0,
-            'user_prompted': 0,
-            'failed': 0
-        }
-
-auto_download_integration = AutoDownloadIntegration()
+## Queue-based integration removed as requested
 
 # =====================
 # Settings commands/UI (merged)
