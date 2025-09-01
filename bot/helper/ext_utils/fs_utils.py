@@ -14,6 +14,7 @@ from bot import bot_cache
 from .exceptions import NotSupportedExtractionArchive
 from bot import aria2, LOGGER, DOWNLOAD_DIR, get_client, GLOBAL_EXTENSION_FILTER
 from bot.helper.ext_utils.bot_utils import sync_to_async, cmd_exec
+from bot.helper.ext_utils.leech_utils import get_document_type
 
 ARCH_EXT = [
     ".tar.bz2",
@@ -295,3 +296,104 @@ async def edit_metadata(
             (await listener.suproc.stderr.read()).decode(),
             media_file,
         )
+
+
+async def ensure_streamable_mp4(listener, in_path: str) -> str:
+    """Ensure a video is Telegram-streamable (MP4 + H.264 video + AAC audio).
+
+    - Keeps video stream as-is (copy)
+    - Converts audio to AAC stereo if needed
+    - Writes to .mp4 with +faststart
+    - Preserves seeding source by writing into copied_mltb when seeding
+
+    Returns the new path on success, or the original path on failure.
+    """
+    try:
+        # Quick type check; if not video, return as-is
+        is_video, _, _ = await get_document_type(in_path)
+        if not is_video:
+            return in_path
+
+        dirpath, filename = in_path.rsplit("/", 1)
+        base_name = filename.rsplit(".", 1)[0]
+
+        # Decide output dir respecting seeding semantics
+        out_dir = dirpath
+        try:
+            if (
+                getattr(listener, "seed", False)
+                and not getattr(listener, "newDir", False)
+                and not dirpath.endswith("/splited_files_mltb")
+            ):
+                out_dir = f"{dirpath}/copied_mltb"
+                await makedirs(out_dir, exist_ok=True)
+        except Exception:
+            # If listener missing fields, just use same dir
+            pass
+
+        out_path = f"{out_dir}/{base_name}.mp4"
+
+        # 1) Prefer converting audio to AAC while copying video
+        cmd = [
+            bot_cache["pkgs"][2],
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-ignore_unknown",
+            "-i",
+            in_path,
+            "-map",
+            "0:v:0?",
+            "-map",
+            "0:a:0?",
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-ac",
+            "2",
+            "-movflags",
+            "+faststart",
+            out_path,
+            "-y",
+        ]
+        proc = await create_subprocess_exec(*cmd, stderr=PIPE)
+        code = await proc.wait()
+        if code == 0 and await aiopath.exists(out_path):
+            return out_path
+
+        # 2) Fallback: pure remux with audio bitstream filter
+        cmd = [
+            bot_cache["pkgs"][2],
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-ignore_unknown",
+            "-i",
+            in_path,
+            "-map",
+            "0:v:0?",
+            "-map",
+            "0:a:0?",
+            "-c:v",
+            "copy",
+            "-c:a",
+            "copy",
+            "-bsf:a",
+            "aac_adtstoasc",
+            "-movflags",
+            "+faststart",
+            out_path,
+            "-y",
+        ]
+        proc = await create_subprocess_exec(*cmd, stderr=PIPE)
+        code = await proc.wait()
+        if code == 0 and await aiopath.exists(out_path):
+            return out_path
+
+        # If both attempts failed, keep original
+        return in_path
+    except Exception:
+        return in_path
