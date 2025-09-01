@@ -94,9 +94,12 @@ class AutoDownloadIntegration:
             # Set the command text
             modified_message.text = " ".join(cmd_parts)
             
-            # Execute the download
+            # Execute the download using a safely extracted client
+            client = getattr(message, "client", None) or getattr(message, "_client", None)
+            if client is None:
+                raise AttributeError("Message object has no client/_client attribute")
             await _mirror_leech(
-                message.client, 
+                client,
                 modified_message,
                 isQbit=options.get('isQbit', False),
                 isLeech=options.get('isLeech', False)
