@@ -390,8 +390,11 @@ class URLAutoDetector:
             modified_message = message
             modified_message.text = f"/mirror {url}"
             
-            # Process the download
-            await _mirror_leech(message.client, modified_message, **kwargs)
+            # Process the download with a safely extracted client
+            client = getattr(message, "client", None) or getattr(message, "_client", None)
+            if client is None:
+                raise AttributeError("Message object has no client/_client attribute")
+            await _mirror_leech(client, modified_message, **kwargs)
             
             LOGGER.info(f"Auto-download initiated for URL: {url}")
             return True

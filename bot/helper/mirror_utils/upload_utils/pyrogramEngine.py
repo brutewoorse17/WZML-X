@@ -44,7 +44,12 @@ from bot.helper.telegram_helper.message_utils import (
     deleteMessage,
     get_tg_link_content,
 )
-from bot.helper.ext_utils.fs_utils import clean_unwanted, is_archive, get_base_name
+from bot.helper.ext_utils.fs_utils import (
+    clean_unwanted,
+    is_archive,
+    get_base_name,
+    ensure_streamable_mp4,
+)
 from bot.helper.ext_utils.bot_utils import (
     get_readable_file_size,
     is_telegram_link,
@@ -615,23 +620,9 @@ class TgUploader:
                 else:
                     width = 480
                     height = 320
-                if not self.__up_path.upper().endswith(("MKV", "MP4")):
-                    dirpath, file_ = self.__up_path.rsplit("/", 1)
-                    if (
-                        self.__listener.seed
-                        and not self.__listener.newDir
-                        and not dirpath.endswith("/splited_files_mltb")
-                    ):
-                        dirpath = f"{dirpath}/copied_mltb"
-                        await makedirs(dirpath, exist_ok=True)
-                        new_path = ospath.join(
-                            dirpath, f"{ospath.splitext(file_)[0]}.mp4"
-                        )
-                        self.__up_path = await copy(self.__up_path, new_path)
-                    else:
-                        new_path = f"{ospath.splitext(self.__up_path)[0]}.mp4"
-                        await aiorename(self.__up_path, new_path)
-                        self.__up_path = new_path
+                # Ensure Telegram-streamable: MP4 container, H.264 video, AAC audio
+                new_path = await ensure_streamable_mp4(self.__listener, self.__up_path)
+                self.__up_path = new_path
                 if self.__is_cancelled:
                     return
                 buttons = await self.__buttons(self.__up_path, is_video)
