@@ -69,12 +69,20 @@ class AutoDownloadManager:
     def __init__(self):
         self.processing_urls = set()  # Track URLs being processed
         self.user_confirmations = {}  # Track pending user confirmations
+        self.stats = {
+            'total_detected': 0,
+            'prompted': 0,
+            'attempted': 0,
+            'success': 0,
+            'failed': 0,
+        }
         
     async def process_message_urls(self, message: Message):
         """Process URLs found in a message"""
         try:
             # Extract URLs from message
             urls = detect_urls_in_message(message.text or message.caption or "")
+            self.stats['total_detected'] += len(urls)
             
             if not urls:
                 return
@@ -121,6 +129,7 @@ class AutoDownloadManager:
                         downloadable_urls.append((url, metadata))
                     elif self.should_prompt_user(url, metadata, user_id):
                         await self.prompt_user_for_download(message, url, metadata)
+                        self.stats['prompted'] += 1
             
             if not downloadable_urls:
                 return
@@ -208,13 +217,16 @@ class AutoDownloadManager:
             status_msg = await sendMessage(message, notification)
             
             # Directly process the download without queueing
+            self.stats['attempted'] += 1
             success = await url_detector.process_auto_download(url, message)
             
             if success:
+                self.stats['success'] += 1
                 await editMessage(status_msg, notification + "\n\n✅ <i>Download initiated successfully!</i>")
                 # Auto-delete notification after 10 seconds
                 asyncio.create_task(self.auto_delete_message(status_msg, 10))
             else:
+                self.stats['failed'] += 1
                 await editMessage(status_msg, notification + "\n\n❌ <i>Failed to initiate download.</i>")
                 asyncio.create_task(self.auto_delete_message(status_msg, 5))
             
@@ -511,6 +523,26 @@ async def auto_download_callback(_, query):
 
 from pyrogram.handlers import CallbackQueryHandler
 
+# Stats command
+@new_task
+async def auto_download_stats_cmd(_, message: Message):
+    s = auto_download_manager.stats
+    active = len(auto_download_manager.processing_urls)
+    pending = len(auto_download_manager.user_confirmations)
+    btn = ButtonMaker()
+    btn.ibutton("Close", f"ads_close_{message.from_user.id}")
+    text = (
+        f"📊 <b>Auto-Download Stats</b>\n\n"
+        f"<b>Total URLs Detected:</b> <code>{s['total_detected']}</code>\n"
+        f"<b>Prompted:</b> <code>{s['prompted']}</code>\n"
+        f"<b>Attempts:</b> <code>{s['attempted']}</code>\n"
+        f"<b>Initiated:</b> <code>{s['success']}</code>\n"
+        f"<b>Failed:</b> <code>{s['failed']}</code>\n"
+        f"<b>Active:</b> <code>{active}</code>\n"
+        f"<b>Pending Confirms:</b> <code>{pending}</code>"
+    )
+    await sendMessage(message, text, btn.build_menu(1))
+
 # Register handlers (messages)
 bot.add_handler(MessageHandler(
     auto_download_handler,
@@ -532,6 +564,12 @@ bot.add_handler(MessageHandler(
 bot.add_handler(CallbackQueryHandler(
     auto_download_settings_callback_handler,
     filters.regex(r"^ads_")
+))
+
+# Register stats command
+bot.add_handler(MessageHandler(
+    auto_download_stats_cmd,
+    filters.command(BotCommands.AutoDownloadStatsCommand) & CustomFilters.authorized
 ))
 
 LOGGER.info("Auto-Download module loaded successfully!")

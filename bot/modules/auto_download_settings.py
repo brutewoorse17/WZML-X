@@ -10,7 +10,7 @@ from pyrogram import filters
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram.types import Message
 
-from bot import bot, LOGGER, user_data
+from bot import bot, LOGGER, user_data, config_dict
 from bot.helper.telegram_helper.message_utils import sendMessage, editMessage, deleteMessage
 from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.button_build import ButtonMaker
@@ -315,11 +315,12 @@ async def show_main_settings_edit(query):
     await query.edit_message_text(status_text, reply_markup=btn.build_menu(2))
 
 # Register command handler
-bot.add_handler(MessageHandler(auto_download_settings_cmd, 
-                              filters.command(BotCommands.AutoDownloadCommand) & CustomFilters.authorized))
+if config_dict.get("ENABLE_LEGACY_AUTODL_SETTINGS", False):
+    bot.add_handler(MessageHandler(auto_download_settings_cmd, 
+                                  filters.command(BotCommands.AutoDownloadCommand) & CustomFilters.authorized))
 
-# Register callback handler
-bot.add_handler(CallbackQueryHandler(auto_download_callback_handler, 
-                                   filters.regex(r"^ads_")))
+    # Register callback handler
+    bot.add_handler(CallbackQueryHandler(auto_download_callback_handler, 
+                                       filters.regex(r"^ads_")))
 
 LOGGER.info("Auto-Download Settings module loaded successfully!")

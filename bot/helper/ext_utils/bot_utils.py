@@ -934,6 +934,14 @@ async def set_commands(client):
                 "Get detailed help about the WZML-X Bot",
             ),
             BotCommand(
+                BotCommands.AutoDownloadCommand[0],
+                f"or /{BotCommands.AutoDownloadCommand[1]} Open Auto-Download settings",
+            ),
+            BotCommand(
+                BotCommands.AutoDownloadStatsCommand,
+                "View Auto-Download statistics",
+            ),
+            BotCommand(
                 BotCommands.UserSetCommand[0],
                 f"or /{BotCommands.UserSetCommand[1]} User's Personal Settings (Open in PM)",
             ),
