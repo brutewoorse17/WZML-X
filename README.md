@@ -1,3 +1,58 @@
+### MEGA.nz Rotating-Proxy Downloader
+
+This repository provides a small tool to download from MEGA.nz while rotating proxies between attempts, using `megadl` from `megatools`.
+
+#### Install
+
+- Ubuntu/Debian:
+```bash
+sudo apt-get update -y
+sudo apt-get install -y megatools
+```
+
+#### Proxy list format
+
+Create a text file with one proxy per line. Common formats supported by `megadl --proxy` include:
+- `http://host:port`
+- `socks5://host:port`
+- `http://username:password@host:port`
+
+Lines starting with `#` or blank lines are ignored.
+
+Example `proxies.txt`:
+```text
+# http proxies
+http://10.0.0.10:8080
+http://user:pass@10.0.0.11:8080
+
+# socks5
+socks5://127.0.0.1:9050
+```
+
+#### Usage
+
+```bash
+python3 mega-rotating-downloader.py \
+  --proxies ./proxies.txt \
+  --strategy round-robin \
+  --retries 10 \
+  --retry-wait 8 \
+  --output ./downloads \
+  --log-proxy \
+  -- https://mega.nz/file/EXAMPLE#KEY
+```
+
+Notes:
+- Use `--` to pass additional arguments directly to `megadl` if needed.
+- Resume is enabled by default (`megadl` resumes unless `--disable-resume` is given).
+- Supports optional `--username` and `--password` for MEGA accounts if required.
+
+#### Tips
+
+- Prefer high-quality residential proxies. Rotate with `--strategy random` for more variance.
+- If you frequently hit limits, increase `--retries` and `--retry-wait`.
+- You can shuffle the list once at start with `--shuffle`.
+
 <p align="center">
     <a href="https://github.com/weebzone/WZML">
         <kbd>
