@@ -140,6 +140,20 @@ def _apply_proxy(api: MegaApi):
         LOGGER.error(f"Unexpected error while applying proxy: {e}")
 
 
+def _is_overquota_error(err: str) -> bool:
+    if not err:
+        return False
+    s = err.strip().lower()
+    return (
+        "overquota" in s
+        or "over quota" in s
+        or "quota exceeded" in s
+        or ("bandwidth" in s and "quota" in s)
+        or "eoverquota" in s
+        or "transfer quota" in s
+    )
+
+
 class MegaAppListener(MegaListener):
     _NO_EVENT_ON = (MegaRequest.TYPE_LOGIN, MegaRequest.TYPE_FETCH_NODES)
     NO_ERROR = "no error"
@@ -151,6 +165,7 @@ class MegaAppListener(MegaListener):
         self.listener = listener
         self.is_cancelled = False
         self.error = None
+        self.rotate_on_overquota = False
         self.__bytes_transferred = 0
         self.__speed = 0
         self.__name = ""
@@ -190,12 +205,17 @@ class MegaAppListener(MegaListener):
 
     def onRequestTemporaryError(self, api, request, error: MegaError):
         LOGGER.error(f"Mega Request error in {error}")
-        if not self.is_cancelled:
+        err_str = error.toString()
+        self.error = err_str
+        if _is_overquota_error(err_str):
+            self.rotate_on_overquota = True
             self.is_cancelled = True
-            async_to_sync(
-                self.listener.onDownloadError, f"RequestTempError: {error.toString()}"
-            )
-        self.error = error.toString()
+        else:
+            if not self.is_cancelled:
+                self.is_cancelled = True
+                async_to_sync(
+                    self.listener.onDownloadError, f"RequestTempError: {err_str}"
+                )
         self.continue_event.set()
 
     def onTransferUpdate(self, api: MegaApi, transfer: MegaTransfer):
@@ -231,9 +251,12 @@ class MegaAppListener(MegaListener):
         self.error = errStr
         if not self.is_cancelled:
             self.is_cancelled = True
-            async_to_sync(
-                self.listener.onDownloadError, f"TransferTempError: {errStr} ({filen})"
-            )
+            if _is_overquota_error(errStr):
+                self.rotate_on_overquota = True
+            else:
+                async_to_sync(
+                    self.listener.onDownloadError, f"TransferTempError: {errStr} ({filen})"
+                )
             self.continue_event.set()
 
     async def cancel_download(self):
@@ -256,85 +279,126 @@ async def add_mega_download(mega_link, path, listener, name):
     MEGA_EMAIL = config_dict["MEGA_EMAIL"]
     MEGA_PASSWORD = config_dict["MEGA_PASSWORD"]
 
+    proxies = _parse_proxy_list_from_config()
     executor = AsyncExecutor()
-    api = MegaApi(None, None, None, "WZML-X")
-    folder_api = None
-
     mega_listener = MegaAppListener(executor.continue_event, listener)
-    api.addListener(mega_listener)
 
-    # Apply rotating proxy if configured
-    _apply_proxy(api)
-
-    if MEGA_EMAIL and MEGA_PASSWORD:
-        await executor.do(api.login, (MEGA_EMAIL, MEGA_PASSWORD))
-
-    if get_mega_link_type(mega_link) == "file":
-        await executor.do(api.getPublicNode, (mega_link,))
-        node = mega_listener.public_node
-    else:
-        folder_api = MegaApi(None, None, None, "WZML-X")
-        folder_api.addListener(mega_listener)
-        # Apply rotating proxy to folder_api too
-        _apply_proxy(folder_api)
-        await executor.do(folder_api.loginToFolder, (mega_link,))
-        node = await sync_to_async(folder_api.authorizeNode, mega_listener.node)
-    if mega_listener.error is not None:
-        await sendMessage(listener.message, str(mega_listener.error))
-        await executor.do(api.logout, ())
-        if folder_api is not None:
-            await executor.do(folder_api.logout, ())
-        return
-
-    name = name or node.getName()
-    msg, button = await stop_duplicate_check(name, listener)
-    if msg:
-        await sendMessage(listener.message, msg, button)
-        await executor.do(api.logout, ())
-        if folder_api is not None:
-            await executor.do(folder_api.logout, ())
-        return
-
+    attempt = 0
+    initialized_status = False
     gid = token_hex(5)
-    size = api.getSize(node)
-    if limit_exceeded := await limit_checker(size, listener, isMega=True):
-        await sendMessage(listener.message, limit_exceeded)
-        return
-    added_to_queue, event = await is_queued(listener.uid)
-    if added_to_queue:
-        LOGGER.info(f"Added to Queue/Download: {name}")
-        async with download_dict_lock:
-            download_dict[listener.uid] = QueueStatus(name, size, gid, listener, "Dl")
-        await listener.onDownloadStart()
-        await sendStatusMessage(listener.message)
-        await event.wait()
-        async with download_dict_lock:
-            if listener.uid not in download_dict:
+    from_queue = False
+
+    while True:
+        api = MegaApi(None, None, None, "WZML-X")
+        folder_api = None
+        api.addListener(mega_listener)
+
+        # Rotate proxy only after detecting over-quota on previous attempt
+        if attempt > 0:
+            _apply_proxy(api)
+
+        if MEGA_EMAIL and MEGA_PASSWORD:
+            await executor.do(api.login, (MEGA_EMAIL, MEGA_PASSWORD))
+
+        if get_mega_link_type(mega_link) == "file":
+            await executor.do(api.getPublicNode, (mega_link,))
+            node = mega_listener.public_node
+        else:
+            folder_api = MegaApi(None, None, None, "WZML-X")
+            folder_api.addListener(mega_listener)
+            if attempt > 0:
+                _apply_proxy(folder_api)
+            await executor.do(folder_api.loginToFolder, (mega_link,))
+            node = await sync_to_async(folder_api.authorizeNode, mega_listener.node)
+
+        if mega_listener.error is not None and mega_listener.rotate_on_overquota:
+            await executor.do(api.logout, ())
+            if folder_api is not None:
+                await executor.do(folder_api.logout, ())
+            attempt += 1
+            if attempt > max(1, len(proxies)):
+                await sendMessage(listener.message, str(mega_listener.error))
+                return
+            mega_listener.error = None
+            mega_listener.rotate_on_overquota = False
+            continue
+        elif mega_listener.error is not None:
+            await sendMessage(listener.message, str(mega_listener.error))
+            await executor.do(api.logout, ())
+            if folder_api is not None:
+                await executor.do(folder_api.logout, ())
+            return
+
+        name = name or node.getName()
+        if not initialized_status:
+            msg, button = await stop_duplicate_check(name, listener)
+            if msg:
+                await sendMessage(listener.message, msg, button)
                 await executor.do(api.logout, ())
                 if folder_api is not None:
                     await executor.do(folder_api.logout, ())
                 return
-        from_queue = True
-        LOGGER.info(f"Start Queued Download from Mega: {name}")
-    else:
-        from_queue = False
 
-    async with download_dict_lock:
-        download_dict[listener.uid] = MegaDownloadStatus(
-            name, size, gid, mega_listener, listener.message, listener.upload_details
-        )
-    async with queue_dict_lock:
-        non_queued_dl.add(listener.uid)
+            size = api.getSize(node)
+            if limit_exceeded := await limit_checker(size, listener, isMega=True):
+                await sendMessage(listener.message, limit_exceeded)
+                await executor.do(api.logout, ())
+                if folder_api is not None:
+                    await executor.do(folder_api.logout, ())
+                return
 
-    if from_queue:
-        LOGGER.info(f"Start Queued Download from Mega: {name}")
-    else:
-        await listener.onDownloadStart()
-        await sendStatusMessage(listener.message)
-        LOGGER.info(f"Download from Mega: {name}")
+            added_to_queue, event = await is_queued(listener.uid)
+            if added_to_queue:
+                LOGGER.info(f"Added to Queue/Download: {name}")
+                async with download_dict_lock:
+                    download_dict[listener.uid] = QueueStatus(name, size, gid, listener, "Dl")
+                await listener.onDownloadStart()
+                await sendStatusMessage(listener.message)
+                await event.wait()
+                async with download_dict_lock:
+                    if listener.uid not in download_dict:
+                        await executor.do(api.logout, ())
+                        if folder_api is not None:
+                            await executor.do(folder_api.logout, ())
+                        return
+                from_queue = True
+                LOGGER.info(f"Start Queued Download from Mega: {name}")
+            else:
+                from_queue = False
 
-    await makedirs(path, exist_ok=True)
-    await executor.do(api.startDownload, (node, path, name, None, False, None))
-    await executor.do(api.logout, ())
-    if folder_api is not None:
-        await executor.do(folder_api.logout, ())
+            async with download_dict_lock:
+                download_dict[listener.uid] = MegaDownloadStatus(
+                    name, size, gid, mega_listener, listener.message, listener.upload_details
+                )
+            async with queue_dict_lock:
+                non_queued_dl.add(listener.uid)
+
+            if from_queue:
+                LOGGER.info(f"Start Queued Download from Mega: {name}")
+            else:
+                await listener.onDownloadStart()
+                await sendStatusMessage(listener.message)
+                LOGGER.info(f"Download from Mega: {name}")
+
+            initialized_status = True
+
+        await makedirs(path, exist_ok=True)
+        await executor.do(api.startDownload, (node, path, name, None, False, None))
+
+        if mega_listener.rotate_on_overquota:
+            await executor.do(api.logout, ())
+            if folder_api is not None:
+                await executor.do(folder_api.logout, ())
+            attempt += 1
+            if attempt > max(1, len(proxies)):
+                await sendMessage(listener.message, str(mega_listener.error))
+                return
+            LOGGER.info("MEGA transfer quota exceeded; rotating proxy and retrying...")
+            mega_listener.error = None
+            mega_listener.rotate_on_overquota = False
+            continue
+        else:
+            await executor.do(api.logout, ())
+            if folder_api is not None:
+                await executor.do(folder_api.logout, ())
+            return
