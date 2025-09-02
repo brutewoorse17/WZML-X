@@ -3,6 +3,8 @@ from secrets import token_hex
 from aiofiles.os import makedirs
 from asyncio import Event
 from mega import MegaApi, MegaListener, MegaRequest, MegaTransfer, MegaError
+from urllib.parse import urlparse
+import random
 
 from bot import (
     LOGGER,
@@ -11,6 +13,7 @@ from bot import (
     download_dict,
     non_queued_dl,
     queue_dict_lock,
+    bot_cache,
 )
 from bot.helper.telegram_helper.message_utils import sendMessage, sendStatusMessage
 from bot.helper.ext_utils.bot_utils import (
@@ -25,6 +28,116 @@ from bot.helper.ext_utils.task_manager import (
     limit_checker,
     stop_duplicate_check,
 )
+
+
+def _parse_proxy_list_from_config():
+    proxies = []
+    proxy_single = (config_dict.get("MEGA_PROXY") or "").strip()
+    proxy_multi = (config_dict.get("MEGA_PROXIES") or "").strip()
+    proxy_file = (config_dict.get("MEGA_PROXY_FILE") or "").strip()
+
+    if proxy_single:
+        proxies.append(proxy_single)
+
+    if proxy_multi:
+        # split by newline or comma or whitespace
+        for part in proxy_multi.replace(",", "\n").splitlines():
+            p = part.strip()
+            if p and not p.startswith("#"):
+                proxies.append(p)
+
+    if proxy_file:
+        try:
+            with open(proxy_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    raw = line.strip()
+                    if raw and not raw.startswith("#"):
+                        proxies.append(raw)
+        except Exception as e:
+            LOGGER.error(f"Failed reading MEGA proxy file '{proxy_file}': {e}")
+
+    # de-duplicate preserving order
+    seen = set()
+    unique = []
+    for p in proxies:
+        if p not in seen:
+            unique.append(p)
+            seen.add(p)
+    return unique
+
+
+def _choose_proxy(proxies):
+    strategy = (config_dict.get("MEGA_PROXY_STRATEGY") or "round-robin").strip().lower()
+    state = bot_cache.setdefault("mega_proxy_state", {"last_index": -1})
+    if not proxies:
+        return None
+    if strategy == "random":
+        idx = random.randrange(len(proxies))
+    else:
+        last_index = state.get("last_index", -1)
+        idx = (last_index + 1) % len(proxies)
+        state["last_index"] = idx
+    return proxies[idx]
+
+
+def _apply_proxy(api: MegaApi):
+    try:
+        proxies = _parse_proxy_list_from_config()
+        proxy_url = _choose_proxy(proxies)
+        if not proxy_url:
+            return
+        # Lazy import to avoid hard dependency if MegaProxy is unavailable
+        try:
+            import mega as mega_mod
+            MegaProxy = getattr(mega_mod, "MegaProxy", None)
+        except Exception as e:
+            MegaProxy = None
+            LOGGER.error(f"Failed to import MegaProxy: {e}")
+
+        if MegaProxy is None:
+            LOGGER.warning("MegaProxy class not available; skipping proxy apply")
+            return
+
+        proxy = MegaProxy()
+        # Best effort: prefer setProxyURL if available
+        if hasattr(proxy, "setProxyURL"):
+            try:
+                proxy.setProxyURL(proxy_url)
+            except Exception as e:
+                LOGGER.error(f"setProxyURL failed: {e}")
+        else:
+            # Fallback: set type by scheme if possible
+            try:
+                parsed = urlparse(proxy_url)
+                scheme = (parsed.scheme or "").lower()
+                if hasattr(MegaProxy, "PROXY_SOCKS5") and scheme.startswith("socks"):
+                    proxy.setProxyType(getattr(MegaProxy, "PROXY_SOCKS5"))
+                elif hasattr(MegaProxy, "PROXY_HTTP"):
+                    proxy.setProxyType(getattr(MegaProxy, "PROXY_HTTP"))
+                host = parsed.hostname or ""
+                port = parsed.port or 0
+                if hasattr(proxy, "setProxyHost"):
+                    proxy.setProxyHost(host)
+                if hasattr(proxy, "setProxyPort") and port:
+                    proxy.setProxyPort(port)
+                if parsed.username and hasattr(proxy, "setProxyUsername"):
+                    proxy.setProxyUsername(parsed.username)
+                if parsed.password and hasattr(proxy, "setProxyPassword"):
+                    proxy.setProxyPassword(parsed.password)
+            except Exception as e:
+                LOGGER.error(f"Fallback proxy setup failed: {e}")
+
+        # Apply to api
+        if hasattr(api, "setProxySettings"):
+            try:
+                api.setProxySettings(proxy)
+                LOGGER.info(f"Applied MEGA proxy: {proxy_url}")
+            except Exception as e:
+                LOGGER.error(f"setProxySettings failed: {e}")
+        else:
+            LOGGER.warning("MegaApi.setProxySettings not available; proxy not applied")
+    except Exception as e:
+        LOGGER.error(f"Unexpected error while applying proxy: {e}")
 
 
 class MegaAppListener(MegaListener):
@@ -150,6 +263,9 @@ async def add_mega_download(mega_link, path, listener, name):
     mega_listener = MegaAppListener(executor.continue_event, listener)
     api.addListener(mega_listener)
 
+    # Apply rotating proxy if configured
+    _apply_proxy(api)
+
     if MEGA_EMAIL and MEGA_PASSWORD:
         await executor.do(api.login, (MEGA_EMAIL, MEGA_PASSWORD))
 
@@ -159,6 +275,8 @@ async def add_mega_download(mega_link, path, listener, name):
     else:
         folder_api = MegaApi(None, None, None, "WZML-X")
         folder_api.addListener(mega_listener)
+        # Apply rotating proxy to folder_api too
+        _apply_proxy(folder_api)
         await executor.do(folder_api.loginToFolder, (mega_link,))
         node = await sync_to_async(folder_api.authorizeNode, mega_listener.node)
     if mega_listener.error is not None:

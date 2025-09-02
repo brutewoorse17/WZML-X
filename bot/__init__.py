@@ -298,6 +298,12 @@ if len(MEGA_EMAIL) == 0 or len(MEGA_PASSWORD) == 0:
     MEGA_EMAIL = ""
     MEGA_PASSWORD = ""
 
+# Optional MEGA proxy rotation settings
+MEGA_PROXY = environ.get("MEGA_PROXY", "")
+MEGA_PROXIES = environ.get("MEGA_PROXIES", "")
+MEGA_PROXY_FILE = environ.get("MEGA_PROXY_FILE", "")
+MEGA_PROXY_STRATEGY = environ.get("MEGA_PROXY_STRATEGY", "")
+
 METADATA = environ.get("METADATA", "")
 
 GDTOT_CRYPT = environ.get("GDTOT_CRYPT", "")
@@ -741,6 +747,10 @@ config_dict = {
     "MEDIA_GROUP": MEDIA_GROUP,
     "MEGA_EMAIL": MEGA_EMAIL,
     "MEGA_PASSWORD": MEGA_PASSWORD,
+    "MEGA_PROXY": MEGA_PROXY,
+    "MEGA_PROXIES": MEGA_PROXIES,
+    "MEGA_PROXY_FILE": MEGA_PROXY_FILE,
+    "MEGA_PROXY_STRATEGY": MEGA_PROXY_STRATEGY,
     "METADATA": METADATA,
     "OWNER_ID": OWNER_ID,
     "QUEUE_ALL": QUEUE_ALL,
